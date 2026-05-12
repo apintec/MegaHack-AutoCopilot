@@ -181,18 +181,25 @@ def chat_stream():
                         except json.JSONDecodeError:
                             continue
             
-            # 思考过程：逐段流式输出（流畅效果）
+            # 思考过程：按行流式输出（流畅效果）
             import time as t
-            for chunk in thinking_chunks:
-                elapsed = round(time.time() - start_time, 1)
-                data_json = json.dumps({
-                    'type': 'thinking',
-                    'content': chunk,
-                    'elapsed': elapsed
-                }, ensure_ascii=False)
-                yield 'data: ' + data_json + '\n\n'
-                # 添加短暂延迟让输出更流畅
-                t.sleep(0.03)
+            import re
+            
+            # 按换行符分割，每行作为一段
+            thinking_lines = thinking_content.split('\n')
+            accumulated = ''
+            for line in thinking_lines:
+                if line.strip():  # 非空行
+                    accumulated += line + '\n'
+                    elapsed = round(time.time() - start_time, 1)
+                    data_json = json.dumps({
+                        'type': 'thinking',
+                        'content': accumulated,
+                        'elapsed': elapsed
+                    }, ensure_ascii=False)
+                    yield 'data: ' + data_json + '\n\n'
+                    # 每行延迟150ms，速度适中
+                    t.sleep(0.15)
             
             # 发送完成信号（包含完整思考和回答）
             elapsed = round(time.time() - start_time, 1)
