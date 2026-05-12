@@ -182,41 +182,19 @@ def chat_stream():
                             continue
             
             # 思考过程：逐段流式输出（流畅效果）
-            for i in range(0, len(thinking_chunks), 5):
-                chunk_batch = thinking_chunks[i:i+5]
-                partial_thinking = ''.join(chunk_batch)
+            import time as t
+            for chunk in thinking_chunks:
                 elapsed = round(time.time() - start_time, 1)
                 data_json = json.dumps({
                     'type': 'thinking',
-                    'content': partial_thinking,
+                    'content': chunk,
                     'elapsed': elapsed
                 }, ensure_ascii=False)
                 yield 'data: ' + data_json + '\n\n'
                 # 添加短暂延迟让输出更流畅
-                import time as t
-                t.sleep(0.05)
+                t.sleep(0.03)
             
-            # 发送思考完成信号
-            thinking_done_json = json.dumps({
-                'type': 'thinking_done',
-                'content': thinking_content
-            }, ensure_ascii=False)
-            yield 'data: ' + thinking_done_json + '\n\n'
-            
-            # 回答内容：逐段流式输出
-            for i in range(0, len(answer_chunks), 3):
-                chunk_batch = answer_chunks[i:i+3]
-                partial_answer = ''.join(chunk_batch)
-                data_json = json.dumps({
-                    'type': 'answer',
-                    'content': partial_answer
-                }, ensure_ascii=False)
-                yield 'data: ' + data_json + '\n\n'
-                # 添加短暂延迟
-                import time as t
-                t.sleep(0.05)
-            
-            # 发送完成信号
+            # 发送完成信号（包含完整思考和回答）
             elapsed = round(time.time() - start_time, 1)
             done_json = json.dumps({
                 'type': 'done',
