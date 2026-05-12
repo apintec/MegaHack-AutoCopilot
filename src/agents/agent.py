@@ -3,8 +3,17 @@
 专注于为制造业客户提供智能化的视觉检测方案设计服务
 """
 import os
+import sys
 import json
 from typing import Annotated, Dict, Any, Optional, List, Tuple
+
+# 设置PYTHONPATH确保模块导入
+workspace = os.getenv('COZE_WORKSPACE_PATH', '/workspace/projects')
+if workspace not in sys.path:
+    sys.path.insert(0, workspace)
+if os.path.join(workspace, 'src') not in sys.path:
+    sys.path.insert(0, os.path.join(workspace, 'src'))
+
 from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
@@ -20,7 +29,10 @@ from tools import (
     code_generation,
     report_generation,
     intevega_code_generation,
-    intevega_model_selection
+    intevega_model_selection,
+    vap_code_generation,
+    vap_module_info,
+    vap_deployment_guide
 )
 
 LLM_CONFIG = "config/agent_llm_config.json"
