@@ -1,0 +1,86 @@
+{
+	"TaskType": "detection",
+	"ImgFormat": "RGB",
+	"ModelInputFormat": "NCHW",
+	"DeviceType": "GPU",
+	"GpuId": 0,
+	"CategoryID": [
+		{
+			"ClassName": "ng_bubble",
+			"ClassId": 0
+		}
+	],
+	"NumClasses": 1,
+	"ModelName": "ZH#HF#k4CcHVKS4T4hKC4",
+	"Mean": [
+		0.0,
+		0.0,
+		0.0
+	],
+	"Std": [
+		255.0,
+		255.0,
+		255.0
+	],
+	"AdaptivePadding": {
+		"PaddingType": "Center",
+		"Interpolation": "INTER_AREA",
+		"Value": {
+			"Left": 114,
+			"Top": 114,
+			"Bottom": 114,
+			"Right": 114
+		}
+	},
+	"PlatFormType": "ovg",
+	"MaxBatchSize": 8,
+	"pvgModelEncryInfo": {
+		"IsCipher": true,
+		"EncLength": 196472176,
+		"EncStartIdx": 11,
+		"Cipherkey": "qkUwQ3KK/'Y3csW#"
+	},
+	"InputNodeInfo": [
+		{
+			"NodeName": "images",
+			"NodeShape": [
+				-1,
+				3,
+				640,
+				640
+			],
+			"DataType": "FLOAT32"
+		}
+	],
+	"ThreshSet": {
+		"ConfTheta": 0.25,
+		"IoUTheta": 0.6,
+		"Param1": 0.5,
+		"Param2": 0.5,
+		"Param3": 0.5,
+		"Param4": 0.5,
+		"Param5": 0.5,
+		"Param6": 0.5,
+		"Param7": 0.5,
+		"Param8": 0.5,
+		"Param9": 0.5,
+		"Param10": 0.5
+	},
+	"OutputNodeInfo": [
+		{
+			"NodeName": "outputs",
+			"NodeShape": [
+				-1,
+				8400,
+				6
+			],
+			"DataType": "FLOAT32"
+		}
+	],
+	"ovgModelEncryInfo": {
+		"EncLength": 35831472,
+		"EncStartIdx": 12,
+		"Cipherkey": "#gum[WIQcg1+wygO",
+		"IsCipher": true
+	}
+}

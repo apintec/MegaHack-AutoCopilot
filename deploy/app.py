@@ -78,6 +78,8 @@ def chat():
 - 低配：i5-12400 + RTX 3050 + 16GB（简单检测）
 
 ## 算法SDK
+- Vap = Vision AI Project（视觉AI项目的统称）
+- Badt.Fi = Badt现场的Fi项目专用算法
 - Vap SDK：基于HALCON 21.5的视觉检测库，适合气泡、划伤、异物等缺陷检测
 - InteVega SDK：大图推理加速，支持多线程并行处理
 
