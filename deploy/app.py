@@ -3,10 +3,14 @@
 """
 
 import os
+import sys
 import json
 import requests
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+
+# 添加项目根目录到sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 app = Flask(__name__)
 CORS(app)
@@ -260,6 +264,74 @@ def generate():
         
         return jsonify({'response': content})
         
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+# ============== Skill管理API ==============
+
+@app.route('/api/skills/list', methods=['GET'])
+def list_skills():
+    """获取可用和已安装的Skill列表"""
+    try:
+        from src.utils.skill_manager import skill_manager
+        available = skill_manager.list_available_skills()
+        return jsonify({'skills': available})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/skills/install', methods=['POST'])
+def install_skill():
+    """安装指定Skill"""
+    data = request.json
+    skill_name = data.get('skill_name', '')
+    
+    if not skill_name:
+        return jsonify({'error': '请指定要安装的Skill名称'})
+    
+    try:
+        from src.utils.skill_manager import skill_manager
+        result = skill_manager.install_skill(skill_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/skills/uninstall', methods=['POST'])
+def uninstall_skill():
+    """卸载指定Skill"""
+    data = request.json
+    skill_name = data.get('skill_name', '')
+    
+    if not skill_name:
+        return jsonify({'error': '请指定要卸载的Skill名称'})
+    
+    try:
+        from src.utils.skill_manager import skill_manager
+        result = skill_manager.uninstall_skill(skill_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/api/skills/execute', methods=['POST'])
+def execute_skill():
+    """执行Skill功能"""
+    data = request.json
+    skill_type = data.get('skill_type', '')
+    params = data.get('params', {})
+    
+    try:
+        from src.tools.skill_tools import execute_weather_query, execute_translation
+        
+        if skill_type == 'weather':
+            city = params.get('city', '')
+            result = execute_weather_query.invoke({'city': city})
+            return jsonify({'result': result})
+        elif skill_type == 'translation':
+            text = params.get('text', '')
+            target = params.get('target_lang', 'en')
+            result = execute_translation.invoke({'text': text, 'target_lang': target})
+            return jsonify({'result': result})
+        else:
+            return jsonify({'error': f'未知的Skill类型: {skill_type}'})
     except Exception as e:
         return jsonify({'error': str(e)})
 

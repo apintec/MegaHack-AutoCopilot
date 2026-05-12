@@ -656,6 +656,164 @@
             sendBtn.disabled = false;
         }
     </script>
+    
+    <!-- Skill管理区域 -->
+    <div style="background: rgba(255,255,255,0.95); border-radius: 16px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        <h3 style="color: #333; margin-bottom: 15px;">🔧 扩展技能管理</h3>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+            <button onclick="loadSkills()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                🔄 刷新技能列表
+            </button>
+            <select id="skillSelect" style="padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; min-width: 200px;">
+                <option value="">-- 选择要安装的技能 --</option>
+                <option value="weather">🌤️ 天气预报</option>
+                <option value="translation">🌐 翻译助手</option>
+                <option value="web_search">🔍 联网搜索</option>
+                <option value="stock">📈 股票查询</option>
+                <option value="calendar">📅 日程管理</option>
+            </select>
+            <button onclick="installSkill()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                ➕ 安装
+            </button>
+        </div>
+        
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div id="installedSkills" style="flex: 1; min-width: 300px;">
+                <p style="color: #666; font-size: 14px;">点击"刷新技能列表"查看已安装的技能</p>
+            </div>
+        </div>
+        
+        <div id="skillStatus" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
+    </div>
+    
+    <script>
+        // Skill管理功能
+        async function loadSkills() {
+            const statusDiv = document.getElementById('skillStatus');
+            const container = document.getElementById('installedSkills');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#e3f2fd';
+            statusDiv.textContent = '正在加载...';
+            
+            try {
+                const response = await fetch('/api/skills/list');
+                const data = await response.json();
+                
+                if (data.error) {
+                    statusDiv.style.background = '#ffebee';
+                    statusDiv.textContent = '加载失败: ' + data.error;
+                    return;
+                }
+                
+                const skills = data.skills || [];
+                const installed = skills.filter(s => s.installed);
+                const available = skills.filter(s => !s.installed);
+                
+                let html = '<h4 style="color: #333; margin-bottom: 10px;">已安装的技能:</h4>';
+                if (installed.length === 0) {
+                    html += '<p style="color: #999; font-size: 14px;">暂无已安装的技能</p>';
+                } else {
+                    html += '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
+                    installed.forEach(skill => {
+                        html += `<span style="background: #e8f5e9; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                            <span>${skill.icon}</span>
+                            <span>${skill.name}</span>
+                            <button onclick="uninstallSkill('${skill.type}')" style="background: #ff5722; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px;">×</button>
+                        </span>`;
+                    });
+                    html += '</div>';
+                }
+                
+                container.innerHTML = html;
+                
+                // 更新下拉框
+                const select = document.getElementById('skillSelect');
+                select.innerHTML = '<option value="">-- 选择要安装的技能 --</option>';
+                available.forEach(skill => {
+                    select.innerHTML += `<option value="${skill.type}">${skill.icon} ${skill.name}</option>`;
+                });
+                
+                statusDiv.style.background = '#e8f5e9';
+                statusDiv.textContent = `共 ${installed.length} 个技能已安装，${available.length} 个可用`;
+            } catch (error) {
+                statusDiv.style.background = '#ffebee';
+                statusDiv.textContent = '网络错误: ' + error.message;
+            }
+        }
+        
+        async function installSkill() {
+            const select = document.getElementById('skillSelect');
+            const skillName = select.value;
+            
+            if (!skillName) {
+                alert('请先选择一个要安装的技能');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('skillStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fff3e0';
+            statusDiv.textContent = '正在安装...';
+            
+            try {
+                const response = await fetch('/api/skills/install', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skill_name: skillName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusDiv.style.background = '#e8f5e9';
+                    statusDiv.textContent = '安装成功！';
+                    loadSkills();
+                } else {
+                    statusDiv.style.background = '#ffebee';
+                    statusDiv.textContent = '安装失败: ' + (data.message || data.error);
+                }
+            } catch (error) {
+                statusDiv.style.background = '#ffebee';
+                statusDiv.textContent = '网络错误: ' + error.message;
+            }
+        }
+        
+        async function uninstallSkill(skillName) {
+            if (!confirm('确定要卸载这个技能吗？')) return;
+            
+            const statusDiv = document.getElementById('skillStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = '#fff3e0';
+            statusDiv.textContent = '正在卸载...';
+            
+            try {
+                const response = await fetch('/api/skills/uninstall', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skill_name: skillName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusDiv.style.background = '#e8f5e9';
+                    statusDiv.textContent = '卸载成功！';
+                    loadSkills();
+                } else {
+                    statusDiv.style.background = '#ffebee';
+                    statusDiv.textContent = '卸载失败: ' + (data.message || data.error);
+                }
+            } catch (error) {
+                statusDiv.style.background = '#ffebee';
+                statusDiv.textContent = '网络错误: ' + error.message;
+            }
+        }
+        
+        // 页面加载时自动加载技能列表
+        loadSkills();
+    </script>
+    
     <div style="text-align: center; padding: 15px; color: #666; font-size: 12px; border-top: 1px solid #eee; margin-top: 20px;">
         工业视觉检测AI专家 © 2026
     </div>
