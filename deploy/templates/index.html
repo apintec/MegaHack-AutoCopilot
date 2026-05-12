@@ -539,16 +539,34 @@
             typingDiv.id = 'typingIndicator';
             typingDiv.innerHTML = `
                 <div class="message-content">
-                    <div class="message-typing">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
+                    <div class="message-typing" id="thinkingArea" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div id="thinkingDots" style="display: flex; gap: 4px;">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                        <div id="thinkingText" style="font-size: 13px; color: #718096; line-height: 1.6; max-height: 150px; overflow: hidden; white-space: pre-wrap; display: none;"></div>
                     </div>
                 </div>
             `;
             chatMessages.appendChild(typingDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
             isTyping = true;
+        }
+        
+        // 更新思考内容（流式）
+        function updateThinking(content) {
+            const thinkingArea = document.getElementById('thinkingArea');
+            const thinkingDots = document.getElementById('thinkingDots');
+            const thinkingText = document.getElementById('thinkingText');
+            if (thinkingArea && thinkingDots && thinkingText) {
+                if (content) {
+                    thinkingDots.style.display = 'none';
+                    thinkingText.style.display = 'block';
+                    thinkingText.textContent = content;
+                }
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
         }
         
         // 隐藏加载动画
@@ -635,44 +653,11 @@
             messageInput.value = '';
             messageInput.style.height = 'auto';
             
-            // 创建助手消息容器（用于流式更新）
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message assistant';
-            msgDiv.innerHTML = `
-                <div style="flex-shrink: 0; width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                    <span style="font-size: 20px;">🔬</span>
-                </div>
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                    <div id="thinkingArea" style="background: #f7fafc; border-radius: 12px; overflow: hidden; display: none;">
-                        <div style="padding: 10px 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
-                            <span id="thinkingLabel">🧠 思考中<span id="thinkingDots">...</span></span>
-                        </div>
-                        <div id="thinkingContent" style="padding: 12px 16px; color: #4a5568; font-size: 13px; line-height: 1.8; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
-                    </div>
-                    <div id="answerContent" style="color: #2d3748; font-size: 15px; line-height: 1.8; white-space: pre-wrap;"></div>
-                </div>
-            `;
-            chatMessages.appendChild(msgDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            const thinkingArea = document.getElementById('thinkingArea');
-            const thinkingContent = document.getElementById('thinkingContent');
-            const thinkingDots = document.getElementById('thinkingDots');
-            const answerContent = document.getElementById('answerContent');
+            // 显示加载
+            showTyping();
             
             let fullThinking = '';
             let fullAnswer = '';
-            let thinkingStarted = false;
-            let dotsIndex = 0;
-            let dotsInterval = null;
-            
-            // 启动思考动画
-            function startThinkingAnimation() {
-                dotsInterval = setInterval(() => {
-                    dotsIndex = (dotsIndex + 1) % 4;
-                    thinkingDots.textContent = '.'.repeat(dotsIndex || 1);
-                }, 300);
-            }
             
             try {
                 const response = await fetch('/api/chat/stream', {
@@ -691,10 +676,6 @@
                 const decoder = new TextDecoder();
                 let buffer = '';
                 
-                // 开始思考动画
-                thinkingArea.style.display = 'block';
-                startThinkingAnimation();
-                
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -711,36 +692,19 @@
                                 const data = JSON.parse(line.slice(6));
                                 
                                 if (data.type === 'thinking') {
-                                    // 更新思考内容（打字机效果）
-                                    if (!thinkingStarted) {
-                                        thinkingStarted = true;
-                                    }
+                                    // 实时更新思考内容
                                     fullThinking = data.content;
-                                    thinkingContent.textContent = fullThinking;
-                                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    
+                                    updateThinking(fullThinking);
                                 } else if (data.type === 'answer') {
                                     // 更新回答内容
                                     fullAnswer = data.content;
-                                    answerContent.textContent = fullAnswer;
-                                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                                    
                                 } else if (data.type === 'done') {
                                     // 完成
-                                    clearInterval(dotsInterval);
-                                    if (data.thinking && !fullThinking) {
-                                        fullThinking = data.thinking;
-                                        thinkingContent.textContent = fullThinking;
-                                    }
-                                    if (data.answer && !fullAnswer) {
+                                    if (data.answer) {
                                         fullAnswer = data.answer;
-                                        answerContent.textContent = fullAnswer;
                                     }
-                                    document.getElementById('thinkingLabel').textContent = '✅ 思考完成';
-                                    
-                                } else if (data.type === 'error') {
-                                    clearInterval(dotsInterval);
-                                    answerContent.innerHTML = `<span style="color: #dc3545;">错误: ${data.error}</span>`;
+                                } else if (data.error) {
+                                    fullAnswer = '错误: ' + data.error;
                                 }
                             } catch (e) {
                                 // 跳过无效JSON
@@ -749,12 +713,32 @@
                     }
                 }
                 
+                // 隐藏加载动画
+                hideTyping();
+                
+                // 添加助手消息
+                if (fullThinking) {
+                    const thinkingHtml = `
+                        <details style="margin-bottom: 15px; border-radius: 10px; overflow: hidden;">
+                            <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); color: #e2e8f0; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                                <span style="transition: transform 0.2s;">▶</span> 已深度思考
+                            </summary>
+                            <div style="padding: 16px; background: #f7fafc; color: #2d3748; font-size: 13px; line-height: 1.8; white-space: pre-wrap; border: 1px solid #e2e8f0; border-top: none;">
+                                ${formatThinking(fullThinking)}
+                            </div>
+                        </details>
+                    `;
+                    addMessage('assistant', thinkingHtml + formatContent(fullAnswer));
+                } else {
+                    addMessage('assistant', formatContent(fullAnswer));
+                }
+                
                 // 更新历史
-                chatHistory[chatHistory.length - 1][1] = fullAnswer || fullThinking;
+                chatHistory[chatHistory.length - 1][1] = fullAnswer;
                 
             } catch (error) {
-                clearInterval(dotsInterval);
-                answerContent.innerHTML = `<span style="color: #dc3545;">网络错误: ${error.message}</span>`;
+                hideTyping();
+                addMessage('assistant', `<span style="color: #dc3545;">网络错误: ${error.message}</span>`);
             }
             
             // 清空图片
