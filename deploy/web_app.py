@@ -35,16 +35,24 @@ class AutoCopilotClient:
         """处理用户消息"""
         import requests
         
+        if not message or not message.strip():
+            return "请输入内容", history
+        
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
         
-        # 构建消息历史
+        # 构建消息历史，添加空值检查
         messages = []
         for h in history:
-            messages.append({"role": "user", "content": h[0]})
-            messages.append({"role": "assistant", "content": h[1]})
+            if h and len(h) >= 2:
+                user_msg = h[0] if h[0] else ""
+                assistant_msg = h[1] if h[1] else ""
+                if user_msg:
+                    messages.append({"role": "user", "content": user_msg})
+                if assistant_msg:
+                    messages.append({"role": "assistant", "content": assistant_msg})
         messages.append({"role": "user", "content": message})
         
         payload = {
@@ -64,14 +72,16 @@ class AutoCopilotClient:
             )
             
             if response.status_code != 200:
-                return f"❌ API请求失败: {response.status_code}\n\n{response.text}"
+                return f"❌ API请求失败: {response.status_code}\n\n{response.text}", history
             
             result = response.json()
             content = result.get('choices', [{}])[0].get('message', {}).get('content', '')
-            return content
+            if content is None:
+                content = "抱歉，未获取到有效回复"
+            return content, history + [[message, content]]
             
         except Exception as e:
-            return f"❌ 错误: {str(e)}"
+            return f"❌ 错误: {str(e)}", history
     
     def analyze_requirement(self, product_name: str, size: str, defect_type: str, 
                            defect_size: str, tt: str, daily_output: str) -> str:
@@ -138,7 +148,7 @@ css = """
 }
 """
 
-with gr.Blocks(title="AutoCopilot Agent", css=css, theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="AutoCopilot Agent") as demo:
     gr.Markdown("""
     # 🤖 AutoCopilot 工业视觉检测 Agent
     
@@ -151,7 +161,7 @@ with gr.Blocks(title="AutoCopilot Agent", css=css, theme=gr.themes.Soft()) as de
         # Tab 1: 智能对话
         with gr.TabItem("💬 智能对话"):
             gr.Markdown("### 与Agent对话，输入您的工业视觉检测需求")
-            chatbot = gr.Chatbot(height=500, show_copy_button=True)
+            chatbot = gr.Chatbot(height=500)
             msg = gr.Textbox(label="输入问题", placeholder="例如：帮我设计一个LCD面板气泡检测方案")
             with gr.Row():
                 clear_btn = gr.Button("🗑️ 清空对话", variant="secondary")
@@ -187,7 +197,7 @@ with gr.Blocks(title="AutoCopilot Agent", css=css, theme=gr.themes.Soft()) as de
                         value="PROTECTIVE_FILM_DEFECT"
                     )
             code_btn = gr.Button("🔧 生成代码", variant="primary", size="lg")
-            code_output = gr.Code(label="生成的代码", language="csharp", height=500)
+            code_output = gr.Code(label="生成的代码", language="cpp")
         
         # Tab 4: 关于
         with gr.TabItem("ℹ️ 关于"):
@@ -246,6 +256,6 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
-        share=False,
-        inbrowser=True
+        share=True,
+        inbrowser=False
     )
