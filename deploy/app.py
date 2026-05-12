@@ -130,12 +130,15 @@ def chat():
     }
     
     try:
+        import time
+        start_time = time.time()
         response = requests.post(
             f"{API_BASE_URL}/chat/completions",
             headers=headers,
             json=payload,
             timeout=600
         )
+        thinking_time = round(time.time() - start_time, 1)
         
         if response.status_code != 200:
             return jsonify({'error': f'API请求失败: {response.status_code}'})
@@ -160,7 +163,8 @@ def chat():
         
         return jsonify({
             'response': content,
-            'thinking': thinking if thinking else ''
+            'thinking': thinking if thinking else '',
+            'thinking_time': thinking_time
         })
         
     except Exception as e:
