@@ -15,11 +15,10 @@ if os.path.join(workspace, 'src') not in sys.path:
     sys.path.insert(0, os.path.join(workspace, 'src'))
 
 from langchain.agents import create_agent
+from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
 from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
-from coze_coding_dev_sdk import LLMClient
-from coze_coding_dev_sdk.llm.models import LLMConfig
 from coze_coding_utils.runtime_ctx.context import default_headers, new_context
 from storage.memory.memory_saver import get_memory_saver
 
@@ -77,22 +76,20 @@ def build_agent(ctx=None):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = json.load(f)
 
-    # 创建LLM客户端（使用SDK方式）
-    if ctx is None:
-        ctx = new_context(method="build_agent")
+    # 使用用户配置的小米MiMo API
+    api_key = os.getenv("OPENAI_API_KEY", "tp-cqp1essndwfovkwmbwlnuhse908h4r8rbzw7djmztr1ywxtc")
+    base_url = os.getenv("OPENAI_BASE_URL", "https://token-plan-cn.xiaomimimo.com/v1")
     
-    llm_client = LLMClient(ctx=ctx)
-    
-    # 创建LLM配置
-    llm_config = LLMConfig(
+    # 初始化LLM - 使用小米MiMo-V2.5模型
+    llm = ChatOpenAI(
         model=cfg['config'].get("model"),
+        api_key=api_key,
+        base_url=base_url,
         temperature=cfg['config'].get('temperature', 0.7),
-        top_p=cfg['config'].get('top_p', 0.9),
-        max_tokens=cfg['config'].get('max_completion_tokens', 10000)
+        streaming=True,
+        timeout=cfg['config'].get('timeout', 600),
+        default_headers=default_headers(ctx) if ctx else {}
     )
-    
-    # 获取底层的ChatOpenAI实例
-    llm = llm_client._create_llm(llm_config)
 
     # 注册Agent工具
     tools = [
