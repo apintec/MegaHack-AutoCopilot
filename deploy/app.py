@@ -1,5 +1,5 @@
 """
-AutoCopilot Agent Web界面 (Flask版本)
+工业视觉检测AI专家 Web界面 (Flask版本)
 """
 
 import os
