@@ -6,7 +6,7 @@ import os
 import sys
 import json
 import requests
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 from flask_cors import CORS
 
 # 添加项目根目录到sys.path
@@ -25,6 +25,179 @@ MODEL = "mimo-v2.5"
 def index():
     """主页"""
     return render_template('index.html')
+
+# ============== 系统提示词 ==============
+SYSTEM_PROMPT = """你是工业视觉检测AI专家，专注于为工业自动化领域提供智能解决方案。
+
+## 核心能力
+1. **需求评估**：根据产品尺寸、检测精度、TT耗时等参数，评估检测方案可行性
+2. **硬件选型**：推荐相机（线扫/面阵）、光源（同轴/背光/条光等）、工控机配置
+3. **算法推荐**：推荐Vap SDK或InteVega SDK的检测算法
+4. **代码生成**：生成完整的检测代码（C#/Python）
+5. **方案设计**：输出符合行业标准的技术方案文档
+
+## 技术规范（基于华星RFQ标准）
+- 漏检率：<0.5%
+- 误检率：<1-2%
+- 像素当量计算：缺陷尺寸/2
+- 线扫相机适用：TT<5秒的高速检测
+- 面阵相机适用：TT>5秒的低速检测
+
+## 光源选型指南
+- 同轴光源：表面划伤、凹坑、气泡
+- 背光源：透明物体内部缺陷
+- 低角度环形光：边缘缺陷、刻印检测
+- 条形光源：大面积均匀照明
+- 穹顶光源：漫反射表面，消除反光
+
+## 工控机配置标准（基于华星PPT）
+- 高配：i9-13900K + RTX 4070Ti + 64GB（多相机系统）
+- 中配：i7-12700K + RTX 4060 + 32GB（单相机系统）
+- 低配：i5-12400 + RTX 3050 + 16GB（简单检测）
+
+## 算法SDK
+- Vap = Vision AI Project（视觉AI项目的统称）
+- Badt.Fi = Badt现场的Fi项目专用算法
+- Vap SDK：基于HALCON 21.5的视觉检测库，适合气泡、划伤、异物等缺陷检测
+- InteVega SDK：大图推理加速，支持多线程并行处理
+
+## 回复规范
+- 使用中文回复
+- 技术参数用表格展示
+- 代码使用代码块
+- 方案使用结构化格式
+- 保持专业、简洁
+"""
+
+@app.route('/api/chat/stream', methods=['POST'])
+def chat_stream():
+    """流式对话API - 实时显示思考过程"""
+    data = request.json
+    message = data.get('message', '')
+    history = data.get('history', [])
+    image_data = data.get('image', '')
+    
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    # 构建消息历史
+    messages = []
+    for h in history:
+        if h and len(h) >= 2:
+            user_msg = h[0] if h[0] else ""
+            assistant_msg = h[1] if h[1] else ""
+            if user_msg:
+                messages.append({"role": "user", "content": user_msg})
+            if assistant_msg:
+                messages.append({"role": "assistant", "content": assistant_msg})
+    
+    messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+    
+    # 如果有图片，添加到用户消息
+    if image_data:
+        user_content = [
+            {"type": "text", "text": message if message else "请分析这张图片"}
+        ]
+        if image_data.startswith('data:image'):
+            img_data = image_data.split(',')[1] if ',' in image_data else image_data
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{img_data}"}
+            })
+        messages.append({"role": "user", "content": user_content})
+    else:
+        messages.append({"role": "user", "content": message})
+    
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "stream": True,
+        "temperature": 0.7,
+        "max_tokens": 4000,
+        "extra_body": {
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 3000
+            }
+        }
+    }
+    
+    import time
+    
+    def generate():
+        start_time = time.time()
+        thinking_content = ""
+        answer_content = ""
+        
+        try:
+            response = requests.post(
+                f"{API_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+                stream=True,
+                timeout=600
+            )
+            
+            if response.status_code != 200:
+                yield f"data: {json.dumps({'error': f'API请求失败: {response.status_code}'}, ensure_ascii=False)}\n\n"
+                return
+            
+            # 流式读取响应
+            for line in response.iter_lines():
+                if line:
+                    line_text = line.decode('utf-8')
+                    if line_text.startswith('data: '):
+                        data_str = line_text[6:]
+                        if data_str == '[DONE]':
+                            break
+                        
+                        try:
+                            chunk = json.loads(data_str)
+                            choices = chunk.get('choices', [])
+                            if not choices:
+                                continue
+                            delta = choices[0].get('delta', {})
+                            
+                            # 检查思考过程
+                            if 'reasoning_content' in delta:
+                                rc = delta['reasoning_content']
+                                if rc:
+                                    thinking_content += rc
+                                    elapsed = round(time.time() - start_time, 1)
+                                    yield f"data: {json.dumps({
+                                        'type': 'thinking',
+                                        'content': thinking_content,
+                                        'elapsed': elapsed
+                                    }, ensure_ascii=False)}\n\n"
+                            
+                            # 检查回答内容
+                            if 'content' in delta:
+                                content = delta['content']
+                                if content:
+                                    answer_content += content
+                                    yield f"data: {json.dumps({
+                                        'type': 'answer',
+                                        'content': answer_content
+                                    }, ensure_ascii=False)}\n\n"
+                                    
+                        except json.JSONDecodeError:
+                            continue
+            
+            # 发送完成信号
+            elapsed = round(time.time() - start_time, 1)
+            yield f"data: {json.dumps({
+                'type': 'done',
+                'thinking': thinking_content,
+                'answer': answer_content,
+                'elapsed': elapsed
+            }, ensure_ascii=False)}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+    
+    return Response(generate(), mimetype='text/event-stream')
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
