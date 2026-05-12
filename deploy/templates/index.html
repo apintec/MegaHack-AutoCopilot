@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工业视觉检测AI专家</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -11,844 +13,1198 @@
             box-sizing: border-box;
         }
         
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --primary-light: #60a5fa;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #475569;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --thinking-bg: #1a365d;
+            --thinking-border: #3b82f6;
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
         
-        header {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
-        h1 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 8px;
+        .logo {
             display: flex;
             align-items: center;
             gap: 12px;
         }
         
-        h1::before {
-            content: "🔬";
-            font-size: 32px;
-        }
-        
-        .subtitle {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .main-content {
-            display: flex;
-            gap: 20px;
-            flex: 1;
-        }
-        
-        .chat-section {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            min-height: 600px;
-        }
-        
-        .capabilities {
-            width: 320px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-        }
-        
-        .capabilities h3 {
-            color: #333;
-            margin-bottom: 16px;
-            font-size: 18px;
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 10px;
             display: flex;
             align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--text-primary), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-actions {
+            display: flex;
             gap: 8px;
         }
         
-        .capability-item {
+        .header-btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
             display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 12px;
-            background: #f8f9fa;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .header-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+        
+        /* Main Layout */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s;
+        }
+        
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .new-chat-btn {
+            width: 100%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 16px;
             border-radius: 10px;
-            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .new-chat-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        
+        .chat-history-item {
+            padding: 12px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin-bottom: 4px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .chat-history-item:hover {
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+        
+        .chat-history-item.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .chat-history-item i {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        /* Skills Section */
+        .skills-section {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .skills-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .skill-btn {
+            aspect-ratio: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 18px;
+        }
+        
+        .skill-btn:hover {
+            background: var(--border);
+            transform: scale(1.05);
+        }
+        
+        .skill-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .skill-btn span {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+        
+        /* Chat Area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-dark);
+        }
+        
+        /* Messages */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            margin-bottom: 24px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .welcome-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, var(--text-primary), var(--primary-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .welcome-subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+        
+        .example-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+            justify-content: center;
+        }
+        
+        .example-prompt {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 12px 20px;
+            border-radius: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.2s;
         }
         
-        .capability-item:hover {
-            background: #e9ecef;
-            transform: translateX(4px);
+        .example-prompt:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
         }
         
-        .capability-icon {
-            font-size: 24px;
-        }
-        
-        .capability-text h4 {
-            color: #333;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .capability-text p {
-            color: #666;
-            font-size: 12px;
-            line-height: 1.4;
-        }
-        
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            margin-bottom: 16px;
-        }
-        
+        /* Message */
         .message {
-            margin-bottom: 16px;
-            animation: fadeIn 0.3s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            display: flex;
+            gap: 12px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
         }
         
         .message.user {
-            text-align: right;
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 18px;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+        }
+        
+        .message.assistant .message-avatar {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
         }
         
         .message-content {
-            display: inline-block;
-            max-width: 85%;
-            padding: 12px 16px;
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .message-text {
+            padding: 16px 20px;
             border-radius: 16px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.7;
+            white-space: pre-wrap;
             word-wrap: break-word;
         }
         
-        .message.user .message-content {
-            background: #667eea;
+        .message.user .message-text {
+            background: var(--primary);
             color: white;
             border-bottom-right-radius: 4px;
         }
         
-        .message.assistant .message-content {
-            background: white;
-            color: #333;
+        .message.assistant .message-text {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
         
-        .message-image {
-            max-width: 300px;
-            max-height: 200px;
-            border-radius: 8px;
-            margin: 8px 0;
+        /* Thinking Section */
+        .thinking-container {
+            background: var(--thinking-bg);
+            border: 1px solid var(--thinking-border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
         }
         
-        .message-typing {
+        .thinking-header {
             display: flex;
-            gap: 4px;
+            align-items: center;
+            gap: 8px;
             padding: 12px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border-bottom: 1px solid var(--thinking-border);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary-light);
         }
         
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            background: #999;
+        .thinking-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .thinking-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
             border-radius: 50%;
-            animation: bounce 1.4s infinite;
+            animation: bounce 1.4s infinite ease-in-out;
         }
         
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        .thinking-dots span:nth-child(1) { animation-delay: 0s; }
+        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
         
         @keyframes bounce {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-6px); }
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
         }
         
-        .chat-input-area {
+        .thinking-content {
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* Thinking in progress animation */
+        .thinking-container.streaming .thinking-header .thinking-dots {
+            display: inline-flex;
+        }
+        
+        .thinking-container.idle .thinking-header .thinking-dots {
+            display: none;
+        }
+        
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px 24px;
+            background: var(--bg-dark);
+            border-top: 1px solid var(--border);
+        }
+        
+        .input-container {
+            max-width: 800px;
+            margin: 0 auto;
             display: flex;
             gap: 12px;
             align-items: flex-end;
         }
         
-        .input-wrapper {
-            flex: 1;
-            position: relative;
+        .image-preview-container {
+            display: none;
+            padding: 0 24px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
         }
         
-        textarea {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e9ecef;
+        .image-preview-container.active {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .image-preview {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .image-preview img {
+            max-width: 200px;
+            max-height: 150px;
             border-radius: 12px;
+            border: 2px solid var(--border);
+        }
+        
+        .image-remove {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: var(--error);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .input-box {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            display: flex;
+            align-items: flex-end;
+            padding: 8px;
+            transition: all 0.2s;
+        }
+        
+        .input-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        .input-textarea {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
             font-size: 15px;
+            padding: 12px;
             resize: none;
-            outline: none;
-            transition: border-color 0.2s;
-            min-height: 54px;
-            max-height: 120px;
+            max-height: 150px;
+            min-height: 48px;
+            line-height: 1.5;
             font-family: inherit;
         }
         
-        textarea:focus {
-            border-color: #667eea;
+        .input-textarea:focus {
+            outline: none;
         }
         
-        .btn {
-            padding: 12px 24px;
+        .input-textarea::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .input-actions {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+        }
+        
+        .input-btn {
+            width: 40px;
+            height: 40px;
+            background: transparent;
             border: none;
             border-radius: 10px;
-            font-size: 15px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+        
+        .input-btn:hover {
+            background: var(--bg-input);
+            color: var(--text-primary);
+        }
+        
+        .input-btn.attach-btn {
+            color: var(--primary);
+        }
+        
+        .send-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
             display: flex;
             align-items: center;
             gap: 6px;
+            transition: all 0.2s;
         }
         
-        .btn-primary {
-            background: #667eea;
-            color: white;
+        .send-btn:hover {
+            background: var(--primary-dark);
         }
         
-        .btn-primary:hover {
-            background: #5568d3;
-            transform: translateY(-1px);
-        }
-        
-        .btn-primary:disabled {
-            background: #a5a5a5;
+        .send-btn:disabled {
+            background: var(--border);
             cursor: not-allowed;
-            transform: none;
         }
         
-        .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
-        }
-        
-        .btn-secondary:hover {
-            background: #e9ecef;
-        }
-        
-        .btn-upload {
-            background: #f8f9fa;
-            color: #666;
-            padding: 12px;
-        }
-        
-        .btn-upload:hover {
-            background: #e9ecef;
-        }
-        
-        .btn-upload.has-image {
-            background: #667eea;
-            color: white;
-        }
-        
-        .preview-container {
-            margin-top: 8px;
+        .input-file {
             display: none;
         }
         
-        .preview-container.show {
-            display: block;
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px 0;
         }
         
-        .preview-image {
-            max-width: 150px;
-            max-height: 100px;
-            border-radius: 8px;
-            border: 2px solid #667eea;
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
         }
         
-        .preview-actions {
-            margin-top: 4px;
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-4px); }
         }
         
-        .preview-actions button {
+        /* Stats */
+        .thinking-stats {
+            display: flex;
+            gap: 16px;
             font-size: 12px;
-            padding: 4px 8px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            padding: 0 16px;
         }
         
-        .error {
-            color: #dc3545;
-            padding: 12px;
-            background: #ffe6e6;
-            border-radius: 8px;
-            margin-bottom: 12px;
+        .thinking-stats span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         
-        pre {
-            background: #f4f4f4;
-            padding: 12px;
+        /* Mobile */
+        .mobile-menu-btn {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 60px;
+                bottom: 0;
+                z-index: 99;
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .messages-container {
+                padding: 16px;
+            }
+            
+            .input-area {
+                padding: 12px 16px 16px;
+            }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        /* Thinking process tags */
+        .thinking-content .thinking-tag {
+            color: var(--warning);
+            font-weight: 500;
+        }
+        
+        /* Code blocks in messages */
+        .message-text pre {
+            background: #0d1117;
             border-radius: 8px;
+            padding: 16px;
             overflow-x: auto;
-            font-size: 13px;
-            margin: 8px 0;
-        }
-        
-        code {
-            font-family: 'Monaco', 'Menlo', monospace;
+            margin: 12px 0;
             font-size: 13px;
         }
         
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 8px 0;
+        .message-text code {
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
         }
         
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
+        .message-text pre code {
+            background: transparent;
+            padding: 0;
         }
         
-        th {
-            background: #f8f9fa;
-        }
-        
-        @media (max-width: 900px) {
-            .main-content {
-                flex-direction: column;
-            }
-            .capabilities {
-                width: 100%;
-            }
+        .message-text :not(pre) > code {
+            background: var(--bg-input);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>工业视觉检测AI专家</h1>
-            <p class="subtitle">智能评估需求 · 精准硬件选型 · 高效代码生成</p>
-        </header>
-        
-        <div class="main-content">
-            <section class="chat-section">
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message assistant">
-                        <div class="message-content">
-                            👋 你好！我是<strong>工业视觉检测AI专家</strong>。<br><br>
-                            我可以帮助你：<br>
-                            • 📋 评估检测需求（产品尺寸、精度、TT节拍）<br>
-                            • 🔧 推荐硬件选型（相机、光源、工控机）<br>
-                            • 💻 生成检测代码（Vap SDK / InteVega SDK）<br>
-                            • 📝 设计完整技术方案<br><br>
-                            请描述你的检测需求，或者上传产品图片！
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="chat-input-area">
-                    <button class="btn btn-upload" id="uploadBtn" title="上传图片">
-                        📷
-                    </button>
-                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
-                    
-                    <div class="input-wrapper">
-                        <textarea id="messageInput" placeholder="输入您的检测需求..." rows="1"></textarea>
-                        <div class="preview-container" id="previewContainer">
-                            <img id="previewImage" class="preview-image">
-                            <div class="preview-actions">
-                                <button class="btn btn-secondary" onclick="removeImage()">移除</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">
-                        <span>发送</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="clearChat()">清空</button>
-                </div>
-            </section>
-            
-            <aside class="capabilities">
-                <h3>💡 我能做什么</h3>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我分析检测需求。产品尺寸：XXmm×XXmm，最小缺陷：XXmm，TT：X秒，日产能：XXXX件')">
-                    <span class="capability-icon">📊</span>
-                    <div class="capability-text">
-                        <h4>需求评估</h4>
-                        <p>根据产品参数评估检测方案，计算像素当量和产能</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我推荐相机和光源。产品：XX，尺寸：XXmm×XXmm，检测目标：XX')">
-                    <span class="capability-icon">📷</span>
-                    <div class="capability-text">
-                        <h4>硬件选型</h4>
-                        <p>推荐线扫/面阵相机、光源类型、工控机配置</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('使用Vap SDK生成XX检测代码')">
-                    <span class="capability-icon">💻</span>
-                    <div class="capability-text">
-                        <h4>代码生成</h4>
-                        <p>生成Vap SDK/InteVega SDK检测代码模板</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我设计一个XX检测方案，产品：XX，尺寸：XXmm×XXmm')">
-                    <span class="capability-icon">📋</span>
-                    <div class="capability-text">
-                        <h4>方案设计</h4>
-                        <p>输出完整的检测技术方案文档</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('气泡检测用什么光源比较好？')">
-                    <span class="capability-icon">💡</span>
-                    <div class="capability-text">
-                        <h4>技术咨询</h4>
-                        <p>解答视觉检测相关的技术问题</p>
-                    </div>
-                </div>
-            </aside>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                <i class="ri-menu-line"></i>
+            </button>
+            <div class="logo-icon">
+                <i class="ri-robot-line"></i>
+            </div>
+            <span class="logo-text">工业视觉检测AI专家</span>
         </div>
+        <div class="header-actions">
+            <button class="header-btn" onclick="clearHistory()">
+                <i class="ri-delete-bin-line"></i>
+                清空历史
+            </button>
+            <button class="header-btn" onclick="showHelp()">
+                <i class="ri-question-line"></i>
+            </button>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="new-chat-btn" onclick="newChat()">
+                    <i class="ri-add-line"></i>
+                    新建对话
+                </button>
+            </div>
+            <div class="chat-history" id="chatHistory">
+                <!-- Chat history items will be inserted here -->
+            </div>
+            <div class="skills-section">
+                <div class="skills-title">快捷工具</div>
+                <div class="skills-grid">
+                    <button class="skill-btn" data-skill="camera" onclick="insertSkill('camera')" title="相机选型">
+                        📷
+                        <span>相机</span>
+                    </button>
+                    <button class="skill-btn" data-skill="light" onclick="insertSkill('light')" title="光源选型">
+                        💡
+                        <span>光源</span>
+                    </button>
+                    <button class="skill-btn" data-skill="code" onclick="insertSkill('code')" title="代码生成">
+                        💻
+                        <span>代码</span>
+                    </button>
+                    <button class="skill-btn" data-skill="scheme" onclick="insertSkill('scheme')" title="方案设计">
+                        📋
+                        <span>方案</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Chat Area -->
+        <main class="chat-area">
+            <div class="messages-container" id="messagesContainer">
+                <!-- Welcome screen -->
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">
+                        <i class="ri-robot-line"></i>
+                    </div>
+                    <h1 class="welcome-title">工业视觉检测AI专家</h1>
+                    <p class="welcome-subtitle">
+                        专注于工业视觉检测领域的智能助手，提供相机选型、光源配置、
+                        代码生成、缺陷检测等全方位技术支持
+                    </p>
+                    <div class="example-prompts">
+                        <div class="example-prompt" onclick="sendExample('帮我推荐一个检测连接器引脚的项目，需要500万像素，检测精度0.05mm')">
+                            连接器引脚检测方案
+                        </div>
+                        <div class="example-prompt" onclick="sendExample('生成一个Vap SDK的模板匹配代码')">
+                            Vap SDK代码生成
+                        </div>
+                        <div class="example-prompt" onclick="sendExample('分析这个缺陷是什么原因导致的')">
+                            缺陷分析
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Image Preview -->
+            <div class="image-preview-container" id="imagePreviewContainer">
+                <div class="image-preview">
+                    <img id="imagePreview" src="" alt="Preview">
+                    <div class="image-remove" onclick="removeImage()">
+                        <i class="ri-close-line"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-box">
+                        <textarea 
+                            class="input-textarea" 
+                            id="messageInput" 
+                            placeholder="输入您的工业视觉检测问题..."
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"
+                            oninput="autoResize(this)"
+                        ></textarea>
+                        <div class="input-actions">
+                            <button class="input-btn attach-btn" onclick="triggerFileInput()" title="上传图片">
+                                <i class="ri-image-add-line"></i>
+                            </button>
+                            <input type="file" class="input-file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+                        </div>
+                    </div>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <i class="ri-send-plane-fill"></i>
+                        发送
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
     
     <script>
+        // State
         let chatHistory = [];
-        let selectedImage = null;
-        let isTyping = false;
+        let currentImage = null;
+        let isStreaming = false;
+        let abortController = null;
+        let thinkingElement = null;
+        let thinkingContent = '';
+        let answerContent = '';
         
-        const uploadBtn = document.getElementById('uploadBtn');
-        const imageInput = document.getElementById('imageInput');
+        // DOM Elements
+        const messagesContainer = document.getElementById('messagesContainer');
+        const welcomeScreen = document.getElementById('welcomeScreen');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
-        const chatMessages = document.getElementById('chatMessages');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewImage = document.getElementById('previewImage');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const fileInput = document.getElementById('fileInput');
+        const chatHistoryEl = document.getElementById('chatHistory');
+        const sidebar = document.getElementById('sidebar');
         
-        // 上传按钮点击
-        uploadBtn.addEventListener('click', () => {
-            imageInput.click();
-        });
+        // Initialize
+        loadHistory();
+        messageInput.focus();
         
-        // 文件选择
-        imageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    selectedImage = event.target.result;
-                    previewImage.src = selectedImage;
-                    previewContainer.classList.add('show');
-                    uploadBtn.classList.add('has-image');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-        
-        // 移除图片
-        function removeImage() {
-            selectedImage = null;
-            imageInput.value = '';
-            previewContainer.classList.remove('show');
-            previewImage.src = '';
-            uploadBtn.classList.remove('has-image');
+        // Auto-resize textarea
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 150) + 'px';
         }
         
-        // 自动调整输入框高度
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
+        // Toggle sidebar on mobile
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
         
-        // 回车发送
-        messageInput.addEventListener('keydown', (e) => {
+        // Handle keyboard
+        function handleKeyDown(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
-        });
+        }
         
-        // 填充提示词
-        function fillPrompt(text) {
-            messageInput.value = text;
+        // Trigger file input
+        function triggerFileInput() {
+            fileInput.click();
+        }
+        
+        // Handle file selection
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    currentImage = event.target.result;
+                    imagePreview.src = currentImage;
+                    imagePreviewContainer.classList.add('active');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        // Remove image
+        function removeImage() {
+            currentImage = null;
+            imagePreview.src = '';
+            imagePreviewContainer.classList.remove('active');
+            fileInput.value = '';
+        }
+        
+        // Insert skill prompt
+        function insertSkill(skill) {
+            const prompts = {
+                camera: '请推荐一款适合以下场景的工业相机：\n- 检测内容：\n- 检测精度：\n- 检测速度：',
+                light: '请推荐光源方案：\n- 检测对象：\n- 工作距离：\n- 检测要求：',
+                code: '请生成Vap SDK/InteVega SDK检测代码：\n- 检测类型：\n- 算法要求：\n- 相机型号：',
+                scheme: '请设计完整的视觉检测方案：\n- 产品信息：\n- 检测需求：\n- 精度要求：'
+            };
+            messageInput.value = prompts[skill] || '';
             messageInput.focus();
         }
         
-        // 清空聊天
-        function clearChat() {
+        // Send example prompt
+        function sendExample(text) {
+            messageInput.value = text;
+            sendMessage();
+        }
+        
+        // New chat
+        function newChat() {
             chatHistory = [];
-            chatMessages.innerHTML = `
-                <div class="message assistant">
-                    <div class="message-content">
-                        👋 聊天已清空！请描述你的检测需求。
-                    </div>
-                </div>
-            `;
+            messagesContainer.innerHTML = '';
+            messagesContainer.appendChild(welcomeScreen.cloneNode(true));
+            welcomeScreen.style.display = 'flex';
+            messageInput.value = '';
+            removeImage();
+            updateChatHistoryUI();
+            sidebar.classList.remove('open');
         }
         
-        // 添加消息到界面
-        function addMessage(role, content, image = null) {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${role}`;
-            
-            let msgContent = `<div class="message-content">${content}`;
-            if (image) {
-                msgContent += `<img src="${image}" class="message-image">`;
+        // Clear history
+        function clearHistory() {
+            if (confirm('确定要清空所有对话历史吗？')) {
+                localStorage.removeItem('vision_ai_history');
+                newChat();
             }
-            msgContent += '</div>';
-            
-            msgDiv.innerHTML = msgContent;
-            chatMessages.appendChild(msgDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
-        // 显示加载动画
-        function showTyping() {
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'message assistant';
-            typingDiv.id = 'typingIndicator';
-            typingDiv.innerHTML = `
-                <div class="message-content">
-                    <div class="message-typing">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            `;
-            chatMessages.appendChild(typingDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            isTyping = true;
+        // Load history from localStorage
+        function loadHistory() {
+            try {
+                const saved = localStorage.getItem('vision_ai_history');
+                if (saved) {
+                    chatHistory = JSON.parse(saved);
+                    updateChatHistoryUI();
+                }
+            } catch (e) {
+                console.error('Failed to load history:', e);
+            }
         }
         
-        // 隐藏加载动画
-        function hideTyping() {
-            const typing = document.getElementById('typingIndicator');
-            if (typing) typing.remove();
-            isTyping = false;
+        // Save history
+        function saveHistory() {
+            try {
+                // 只保存最近20条对话
+                const toSave = chatHistory.slice(-20);
+                localStorage.setItem('vision_ai_history', JSON.stringify(toSave));
+            } catch (e) {
+                console.error('Failed to save history:', e);
+            }
         }
         
-        // 格式化思考过程
-        function formatThinking(content) {
-            if (!content) return "";
-            // HTML转义
-            content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            // 转换换行
-            content = content.replace(/\n/g, '<br>');
-            return content;
-        }
-        
-        // 格式化响应内容
-        function formatContent(content) {
-            if (!content) return "";
-            // 转义HTML
-            content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            
-            // 转换代码块
-            content = content.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
-                return `<pre><code>${code.trim()}</code></pre>`;
+        // Update chat history UI
+        function updateChatHistoryUI() {
+            chatHistoryEl.innerHTML = '';
+            chatHistory.slice(-10).reverse().forEach((item, idx) => {
+                const actualIdx = chatHistory.length - 1 - idx;
+                const div = document.createElement('div');
+                div.className = 'chat-history-item';
+                div.innerHTML = `<i class="ri-message-3-line"></i><span>${escapeHtml(item.preview || item.content.substring(0, 30))}</span>`;
+                div.onclick = () => loadChat(actualIdx);
+                chatHistoryEl.appendChild(div);
             });
-            
-            // 转换行内代码
-            content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // 转换表格
-            const tableRegex = /\|(.+)\|[\r\n]+\|[-| :]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
-            content = content.replace(tableRegex, (match, header, body) => {
-                const headers = header.split('|').filter(h => h.trim());
-                const rows = body.trim().split('\n').map(row => 
-                    row.split('|').filter(c => c.trim())
-                );
-                
-                let table = '<table><thead><tr>';
-                headers.forEach(h => table += `<th>${h.trim()}</th>`);
-                table += '</tr></thead><tbody>';
-                rows.forEach(row => {
-                    table += '<tr>';
-                    row.forEach(cell => table += `<td>${cell.trim()}</td>`);
-                    table += '</tr>';
-                });
-                table += '</tbody></table>';
-                return table;
-            });
-            
-            // 转换换行
-            content = content.replace(/\n/g, '<br>');
-            
-            return content;
         }
         
-        // HTML转义函数
+        // Load specific chat
+        function loadChat(index) {
+            // 实现历史对话加载
+            sidebar.classList.remove('open');
+        }
+        
+        // Escape HTML
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
-        // 发送消息
+        // Send message
         async function sendMessage() {
-            const message = messageInput.value.trim();
+            const content = messageInput.value.trim();
+            if (!content && !currentImage) return;
+            if (isStreaming) return;
             
-            if (!message && !selectedImage) {
-                return;
+            // Hide welcome screen
+            const welcome = messagesContainer.querySelector('.welcome-screen');
+            if (welcome) {
+                welcome.remove();
             }
             
-            sendBtn.disabled = true;
+            // Create user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message user';
+            userMsg.innerHTML = `
+                <div class="message-avatar">
+                    <i class="ri-user-line"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">${escapeHtml(content)}${currentImage ? '<br><img src="' + currentImage + '" style="max-width:200px;margin-top:8px;border-radius:8px;">' : ''}</div>
+                </div>
+            `;
+            messagesContainer.appendChild(userMsg);
             
-            // 添加用户消息
-            addMessage('user', message, selectedImage);
+            // Save to history
+            chatHistory.push({
+                role: 'user',
+                content: content,
+                preview: content.substring(0, 30)
+            });
             
-            // 保存历史
-            chatHistory.push([message, null]);
-            
-            // 清空输入
+            // Clear input
             messageInput.value = '';
-            messageInput.style.height = 'auto';
+            autoResize(messageInput);
+            removeImage();
             
-            // 显示加载
-            showTyping();
+            // Create assistant message container
+            const assistantMsg = document.createElement('div');
+            assistantMsg.className = 'message assistant';
+            assistantMsg.innerHTML = `
+                <div class="message-avatar">
+                    <i class="ri-robot-line"></i>
+                </div>
+                <div class="message-content">
+                    <div class="thinking-container idle" id="thinkingContainer">
+                        <div class="thinking-header">
+                            <span>🧠 思考过程</span>
+                            <div class="thinking-dots">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <div class="thinking-content" id="thinkingContent"></div>
+                    </div>
+                    <div class="message-text" id="answerContent"></div>
+                </div>
+            `;
+            messagesContainer.appendChild(assistantMsg);
             
+            // Scroll to bottom
+            scrollToBottom();
+            
+            // Disable input
+            setInputEnabled(false);
+            isStreaming = true;
+            thinkingElement = assistantMsg;
+            thinkingContent = '';
+            answerContent = '';
+            
+            // Show thinking section
+            const thinkingContainer = document.getElementById('thinkingContainer');
+            const thinkingContentEl = document.getElementById('thinkingContent');
+            thinkingContainer.classList.remove('idle');
+            thinkingContainer.classList.add('streaming');
+            
+            // Start streaming
             try {
-                const response = await fetch('/api/chat', {
+                const response = await fetch('/api/chat/stream', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: message,
-                        history: chatHistory,
-                        image: selectedImage
+                        message: content,
+                        history: chatHistory.slice(-20, -1),
+                        image: currentImage
                     })
                 });
                 
-                const data = await response.json();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
                 
-                hideTyping();
-                
-                if (data.error) {
-                    addMessage('assistant', `<span style="color: #dc3545;">错误: ${data.error}</span>`);
-                } else {
-                    // 如果有思考过程，先显示思考中状态，再显示结果
-                    if (data.thinking && data.thinking.trim()) {
-                        // 显示思考过程（带折叠效果）
-                        const thinkingTime = data.thinking_time ? `（用时${data.thinking_time.toFixed(1)}秒）` : '';
-                        const thinkingHtml = `
-                            <details style="margin-bottom: 15px; border-radius: 10px; overflow: hidden;">
-                                <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); color: #e2e8f0; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                                    <span style="transition: transform 0.2s;">▶</span> 已深度思考${thinkingTime}
-                                </summary>
-                                <div style="padding: 16px; background: #f7fafc; color: #2d3748; font-size: 13px; line-height: 1.8; white-space: pre-wrap; border: 1px solid #e2e8f0; border-top: none;">
-                                    ${formatThinking(data.thinking)}
-                                </div>
-                            </details>
-                        `;
-                        addMessage('assistant', thinkingHtml + formatContent(data.response));
-                    } else {
-                        addMessage('assistant', formatContent(data.response));
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Process complete SSE messages
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                handleStreamData(data, thinkingContentEl);
+                            } catch (e) {
+                                // Skip invalid JSON
+                            }
+                        }
                     }
-                    // 更新历史
-                    chatHistory[chatHistory.length - 1][1] = data.response;
                 }
+                
+                // Process remaining buffer
+                if (buffer.startsWith('data: ')) {
+                    try {
+                        const data = JSON.parse(buffer.slice(6));
+                        handleStreamData(data, thinkingContentEl);
+                    } catch (e) {}
+                }
+                
             } catch (error) {
-                hideTyping();
-                addMessage('assistant', `<span style="color: #dc3545;">网络错误: ${error.message}</span>`);
+                console.error('Stream error:', error);
+                document.getElementById('answerContent').innerHTML = `<span style="color: var(--error);">请求失败: ${error.message}</span>`;
             }
             
-            // 清空图片
-            removeImage();
-            sendBtn.disabled = false;
+            // Finish
+            finishStream();
+        }
+        
+        // Handle stream data
+        function handleStreamData(data, thinkingContentEl) {
+            if (data.type === 'thinking') {
+                // Update thinking content with typewriter effect
+                thinkingContent = data.content;
+                thinkingContentEl.textContent = thinkingContent;
+                scrollToBottom();
+            } else if (data.type === 'answer') {
+                // Update answer content
+                answerContent = data.content;
+                const answerEl = document.getElementById('answerContent');
+                if (answerEl) {
+                    answerEl.textContent = answerContent;
+                }
+                scrollToBottom();
+            } else if (data.type === 'done') {
+                // Final answer from thinking extraction
+                if (data.answer && !answerContent) {
+                    answerContent = data.answer;
+                    const answerEl = document.getElementById('answerContent');
+                    if (answerEl) {
+                        answerEl.textContent = answerContent;
+                    }
+                }
+            } else if (data.type === 'error') {
+                const answerEl = document.getElementById('answerContent');
+                if (answerEl) {
+                    answerEl.innerHTML = `<span style="color: var(--error);">错误: ${data.error}</span>`;
+                }
+            }
+        }
+        
+        // Finish streaming
+        function finishStream() {
+            isStreaming = false;
+            setInputEnabled(true);
+            
+            // Hide thinking dots, keep content
+            const thinkingContainer = document.getElementById('thinkingContainer');
+            if (thinkingContainer) {
+                thinkingContainer.classList.remove('streaming');
+                thinkingContainer.classList.add('idle');
+            }
+            
+            // Save to history
+            chatHistory.push({
+                role: 'assistant',
+                content: answerContent || thinkingContent,
+                preview: (answerContent || thinkingContent).substring(0, 30)
+            });
+            saveHistory();
+            updateChatHistoryUI();
+            
+            messageInput.focus();
+        }
+        
+        // Scroll to bottom
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        // Set input enabled/disabled
+        function setInputEnabled(enabled) {
+            messageInput.disabled = !enabled;
+            sendBtn.disabled = !enabled;
+            const attachBtn = document.querySelector('.attach-btn');
+            if (attachBtn) attachBtn.disabled = !enabled;
+        }
+        
+        // Show help
+        function showHelp() {
+            alert('工业视觉检测AI专家 v1.0\n\n功能说明：\n1. 支持文字和图片输入\n2. 实时显示思考过程\n3. 相机、光源、代码快速生成\n4. 缺陷分析与方案设计\n\n快捷键：\n- Enter: 发送消息\n- Shift+Enter: 换行');
         }
     </script>
-    
-    <!-- Skill管理区域 -->
-    <div style="background: rgba(255,255,255,0.95); border-radius: 16px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <h3 style="color: #333; margin-bottom: 15px;">🔧 扩展技能管理</h3>
-        
-        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
-            <button onclick="loadSkills()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                🔄 刷新技能列表
-            </button>
-            <select id="skillSelect" style="padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; min-width: 200px;">
-                <option value="">-- 选择要安装的技能 --</option>
-                <option value="weather">🌤️ 天气预报</option>
-                <option value="translation">🌐 翻译助手</option>
-                <option value="web_search">🔍 联网搜索</option>
-                <option value="stock">📈 股票查询</option>
-                <option value="calendar">📅 日程管理</option>
-            </select>
-            <button onclick="installSkill()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                ➕ 安装
-            </button>
-        </div>
-        
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <div id="installedSkills" style="flex: 1; min-width: 300px;">
-                <p style="color: #666; font-size: 14px;">点击"刷新技能列表"查看已安装的技能</p>
-            </div>
-        </div>
-        
-        <div id="skillStatus" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
-    </div>
-    
-    <script>
-        // Skill管理功能
-        async function loadSkills() {
-            const statusDiv = document.getElementById('skillStatus');
-            const container = document.getElementById('installedSkills');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#e3f2fd';
-            statusDiv.textContent = '正在加载...';
-            
-            try {
-                const response = await fetch('/api/skills/list');
-                const data = await response.json();
-                
-                if (data.error) {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '加载失败: ' + data.error;
-                    return;
-                }
-                
-                const skills = data.skills || [];
-                const installed = skills.filter(s => s.installed);
-                const available = skills.filter(s => !s.installed);
-                
-                let html = '<h4 style="color: #333; margin-bottom: 10px;">已安装的技能:</h4>';
-                if (installed.length === 0) {
-                    html += '<p style="color: #999; font-size: 14px;">暂无已安装的技能</p>';
-                } else {
-                    html += '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
-                    installed.forEach(skill => {
-                        html += `<span style="background: #e8f5e9; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px;">
-                            <span>${skill.icon}</span>
-                            <span>${skill.name}</span>
-                            <button onclick="uninstallSkill('${skill.type}')" style="background: #ff5722; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px;">×</button>
-                        </span>`;
-                    });
-                    html += '</div>';
-                }
-                
-                container.innerHTML = html;
-                
-                // 更新下拉框
-                const select = document.getElementById('skillSelect');
-                select.innerHTML = '<option value="">-- 选择要安装的技能 --</option>';
-                available.forEach(skill => {
-                    select.innerHTML += `<option value="${skill.type}">${skill.icon} ${skill.name}</option>`;
-                });
-                
-                statusDiv.style.background = '#e8f5e9';
-                statusDiv.textContent = `共 ${installed.length} 个技能已安装，${available.length} 个可用`;
-            } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
-            }
-        }
-        
-        async function installSkill() {
-            const select = document.getElementById('skillSelect');
-            const skillName = select.value;
-            
-            if (!skillName) {
-                alert('请先选择一个要安装的技能');
-                return;
-            }
-            
-            const statusDiv = document.getElementById('skillStatus');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fff3e0';
-            statusDiv.textContent = '正在安装...';
-            
-            try {
-                const response = await fetch('/api/skills/install', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skill_name: skillName })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    statusDiv.style.background = '#e8f5e9';
-                    statusDiv.textContent = '安装成功！';
-                    loadSkills();
-                } else {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '安装失败: ' + (data.message || data.error);
-                }
-            } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
-            }
-        }
-        
-        async function uninstallSkill(skillName) {
-            if (!confirm('确定要卸载这个技能吗？')) return;
-            
-            const statusDiv = document.getElementById('skillStatus');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fff3e0';
-            statusDiv.textContent = '正在卸载...';
-            
-            try {
-                const response = await fetch('/api/skills/uninstall', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ skill_name: skillName })
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    statusDiv.style.background = '#e8f5e9';
-                    statusDiv.textContent = '卸载成功！';
-                    loadSkills();
-                } else {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '卸载失败: ' + (data.message || data.error);
-                }
-            } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
-            }
-        }
-        
-        // 页面加载时自动加载技能列表
-        loadSkills();
-    </script>
-    
-    <div style="text-align: center; padding: 15px; color: #666; font-size: 12px; border-top: 1px solid #eee; margin-top: 20px;">
-        工业视觉检测AI专家 © 2026
-    </div>
 </body>
 </html>
