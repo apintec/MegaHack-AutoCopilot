@@ -18,7 +18,9 @@ from tools import (
     hardware_selection,
     algorithm_recommendation,
     code_generation,
-    report_generation
+    report_generation,
+    intevega_code_generation,
+    intevega_model_selection
 )
 
 LLM_CONFIG = "config/agent_llm_config.json"
@@ -82,7 +84,9 @@ def build_agent(ctx=None):
         hardware_selection,
         algorithm_recommendation,
         code_generation,
-        report_generation
+        report_generation,
+        intevega_code_generation,
+        intevega_model_selection
     ]
 
     # 创建Agent
