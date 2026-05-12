@@ -28,9 +28,10 @@ def chat():
     data = request.json
     message = data.get('message', '')
     history = data.get('history', [])
+    image_data = data.get('image', '')  # 接收base64图片
     
-    if not message:
-        return jsonify({'error': '请输入内容'})
+    if not message and not image_data:
+        return jsonify({'error': '请输入内容或上传图片'})
     
     headers = {
         "Authorization": f"Bearer {API_KEY}",
@@ -47,7 +48,66 @@ def chat():
                 messages.append({"role": "user", "content": user_msg})
             if assistant_msg:
                 messages.append({"role": "assistant", "content": assistant_msg})
-    messages.append({"role": "user", "content": message})
+    # 系统提示词 - 工业视觉检测AI专家
+    system_prompt = """你是工业视觉检测AI专家，专注于为工业自动化领域提供智能解决方案。
+
+## 核心能力
+1. **需求评估**：根据产品尺寸、检测精度、TT耗时等参数，评估检测方案可行性
+2. **硬件选型**：推荐相机（线扫/面阵）、光源（同轴/背光/条光等）、工控机配置
+3. **算法推荐**：推荐Vap SDK或InteVega SDK的检测算法
+4. **代码生成**：生成完整的检测代码（C#/Python）
+5. **方案设计**：输出符合行业标准的技术方案文档
+
+## 技术规范（基于华星RFQ标准）
+- 漏检率：<0.5%
+- 误检率：<1-2%
+- 像素当量计算：缺陷尺寸/2
+- 线扫相机适用：TT<5秒的高速检测
+- 面阵相机适用：TT>5秒的低速检测
+
+## 光源选型指南
+- 同轴光源：表面划伤、凹坑、气泡
+- 背光源：透明物体内部缺陷
+- 低角度环形光：边缘缺陷、刻印检测
+- 条形光源：大面积均匀照明
+- 穹顶光源：漫反射表面，消除反光
+
+## 工控机配置标准（基于华星PPT）
+- 高配：i9-13900K + RTX 4070Ti + 64GB（多相机系统）
+- 中配：i7-12700K + RTX 4060 + 32GB（单相机系统）
+- 低配：i5-12400 + RTX 3050 + 16GB（简单检测）
+
+## 算法SDK
+- Vap SDK：基于HALCON 21.5的视觉检测库，适合气泡、划伤、异物等缺陷检测
+- InteVega SDK：大图推理加速，支持多线程并行处理
+
+## 回复规范
+- 使用中文回复
+- 技术参数用表格展示
+- 代码使用代码块
+- 方案使用结构化格式
+- 保持专业、简洁
+"""
+    
+    messages.insert(0, {"role": "system", "content": system_prompt})
+    
+    # 如果有图片，添加到用户消息
+    if image_data:
+        # 构建多模态消息（图片+文字）
+        user_content = [
+            {"type": "text", "text": message if message else "请分析这张图片"}
+        ]
+        # 添加图片
+        if image_data.startswith('data:image'):
+            # 去掉data:image/xxx;base64,前缀
+            img_data = image_data.split(',')[1] if ',' in image_data else image_data
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{img_data}"}
+            })
+        messages.append({"role": "user", "content": user_content})
+    else:
+        messages.append({"role": "user", "content": message})
     
     payload = {
         "model": MODEL,
