@@ -144,7 +144,7 @@ def chat():
         message_data = result.get('choices', [{}])[0].get('message', {})
         
         # 获取思考过程（如果模型支持）
-        thinking = message_data.get('thinking', '')
+        thinking = message_data.get('reasoning_content', '') or message_data.get('thinking', '')
         content = message_data.get('content', '')
         
         if content is None or content == '':
