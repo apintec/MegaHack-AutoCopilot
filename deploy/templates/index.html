@@ -658,6 +658,7 @@
             
             let fullThinking = '';
             let fullAnswer = '';
+            let thinkingDone = false;
             
             try {
                 const response = await fetch('/api/chat/stream', {
@@ -695,9 +696,23 @@
                                     // 实时更新思考内容
                                     fullThinking = data.content;
                                     updateThinking(fullThinking);
+                                } else if (data.type === 'thinking_done') {
+                                    // 思考完成，隐藏思考区域
+                                    thinkingDone = true;
+                                    const thinkingArea = document.getElementById('thinkingArea');
+                                    if (thinkingArea) {
+                                        thinkingArea.style.display = 'none';
+                                    }
+                                    // 保存最终思考内容
+                                    fullThinking = data.content;
                                 } else if (data.type === 'answer') {
                                     // 更新回答内容
                                     fullAnswer = data.content;
+                                    const answerEl = document.getElementById('answerContent');
+                                    if (answerEl) {
+                                        answerEl.textContent = fullAnswer;
+                                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                                    }
                                 } else if (data.type === 'done') {
                                     // 完成
                                     if (data.answer) {

@@ -145,7 +145,10 @@ def chat_stream():
                 yield 'data: ' + error_json + '\n\n'
                 return
             
-            # 流式读取响应
+            # 流式读取响应 - 先收集思考过程，再收集回答
+            thinking_chunks = []
+            answer_chunks = []
+            
             for line in response.iter_lines():
                 if line:
                     line_text = line.decode('utf-8')
@@ -161,32 +164,57 @@ def chat_stream():
                                 continue
                             delta = choices[0].get('delta', {})
                             
-                            # 检查思考过程
+                            # 收集思考过程
                             if 'reasoning_content' in delta:
                                 rc = delta['reasoning_content']
                                 if rc:
+                                    thinking_chunks.append(rc)
                                     thinking_content += rc
-                                    elapsed = round(time.time() - start_time, 1)
-                                    data_json = json.dumps({
-                                        'type': 'thinking',
-                                        'content': thinking_content,
-                                        'elapsed': elapsed
-                                    }, ensure_ascii=False)
-                                    yield 'data: ' + data_json + '\n\n'
                             
-                            # 检查回答内容
+                            # 收集回答内容
                             if 'content' in delta:
                                 content = delta['content']
                                 if content:
+                                    answer_chunks.append(content)
                                     answer_content += content
-                                    data_json = json.dumps({
-                                        'type': 'answer',
-                                        'content': answer_content
-                                    }, ensure_ascii=False)
-                                    yield 'data: ' + data_json + '\n\n'
                                     
                         except json.JSONDecodeError:
                             continue
+            
+            # 思考过程：逐段流式输出（流畅效果）
+            for i in range(0, len(thinking_chunks), 5):
+                chunk_batch = thinking_chunks[i:i+5]
+                partial_thinking = ''.join(chunk_batch)
+                elapsed = round(time.time() - start_time, 1)
+                data_json = json.dumps({
+                    'type': 'thinking',
+                    'content': partial_thinking,
+                    'elapsed': elapsed
+                }, ensure_ascii=False)
+                yield 'data: ' + data_json + '\n\n'
+                # 添加短暂延迟让输出更流畅
+                import time as t
+                t.sleep(0.05)
+            
+            # 发送思考完成信号
+            thinking_done_json = json.dumps({
+                'type': 'thinking_done',
+                'content': thinking_content
+            }, ensure_ascii=False)
+            yield 'data: ' + thinking_done_json + '\n\n'
+            
+            # 回答内容：逐段流式输出
+            for i in range(0, len(answer_chunks), 3):
+                chunk_batch = answer_chunks[i:i+3]
+                partial_answer = ''.join(chunk_batch)
+                data_json = json.dumps({
+                    'type': 'answer',
+                    'content': partial_answer
+                }, ensure_ascii=False)
+                yield 'data: ' + data_json + '\n\n'
+                # 添加短暂延迟
+                import time as t
+                t.sleep(0.05)
             
             # 发送完成信号
             elapsed = round(time.time() - start_time, 1)
