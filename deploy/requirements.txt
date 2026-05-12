@@ -1,0 +1,11 @@
+# AutoCopilot Agent 依赖包
+
+# 核心依赖
+requests>=2.28.0
+python-dotenv>=1.0.0
+
+# 打包工具
+pyinstaller>=6.0.0
+
+# 可选GUI界面（Gradio Web界面）
+gradio>=4.0.0
