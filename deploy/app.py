@@ -141,7 +141,8 @@ def chat_stream():
             )
             
             if response.status_code != 200:
-                yield f"data: {json.dumps({'error': f'API请求失败: {response.status_code}'}, ensure_ascii=False)}\n\n"
+                error_json = json.dumps({'error': 'API请求失败: ' + str(response.status_code)}, ensure_ascii=False)
+                yield 'data: ' + error_json + '\n\n'
                 return
             
             # 流式读取响应
@@ -166,36 +167,40 @@ def chat_stream():
                                 if rc:
                                     thinking_content += rc
                                     elapsed = round(time.time() - start_time, 1)
-                                    yield f"data: {json.dumps({
+                                    data_json = json.dumps({
                                         'type': 'thinking',
                                         'content': thinking_content,
                                         'elapsed': elapsed
-                                    }, ensure_ascii=False)}\n\n"
+                                    }, ensure_ascii=False)
+                                    yield 'data: ' + data_json + '\n\n'
                             
                             # 检查回答内容
                             if 'content' in delta:
                                 content = delta['content']
                                 if content:
                                     answer_content += content
-                                    yield f"data: {json.dumps({
+                                    data_json = json.dumps({
                                         'type': 'answer',
                                         'content': answer_content
-                                    }, ensure_ascii=False)}\n\n"
+                                    }, ensure_ascii=False)
+                                    yield 'data: ' + data_json + '\n\n'
                                     
                         except json.JSONDecodeError:
                             continue
             
             # 发送完成信号
             elapsed = round(time.time() - start_time, 1)
-            yield f"data: {json.dumps({
+            done_json = json.dumps({
                 'type': 'done',
                 'thinking': thinking_content,
                 'answer': answer_content,
                 'elapsed': elapsed
-            }, ensure_ascii=False)}\n\n"
+            }, ensure_ascii=False)
+            yield 'data: ' + done_json + '\n\n'
             
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
+            error_json = json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)
+            yield 'data: ' + error_json + '\n\n'
     
     return Response(generate(), mimetype='text/event-stream')
 
