@@ -142,8 +142,11 @@ def chat_stream():
                                     thinking_content += rc
                                     # 实时发送思考更新
                                     elapsed = round(time.time() - start_time, 1)
-                                    data = {'type': 'thinking', 'content': thinking_content, 'elapsed': elapsed}
-                                    yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+                                    yield f"data: {json.dumps({
+                                        'type': 'thinking',
+                                        'content': thinking_content,
+                                        'elapsed': elapsed
+                                    }, ensure_ascii=False)}\n\n"
                             
                             # 检查回答内容
                             if 'content' in delta:
@@ -151,16 +154,22 @@ def chat_stream():
                                 if content:
                                     answer_content += content
                                     # 实时发送回答更新
-                                    data = {'type': 'answer', 'content': answer_content}
-                                    yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+                                    yield f"data: {json.dumps({
+                                        'type': 'answer',
+                                        'content': answer_content
+                                    }, ensure_ascii=False)}\n\n"
                                     
                         except json.JSONDecodeError:
                             continue
             
             # 发送完成信号
             elapsed = round(time.time() - start_time, 1)
-            data = {'type': 'done', 'thinking': thinking_content, 'answer': answer_content, 'elapsed': elapsed}
-            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({
+                'type': 'done',
+                'thinking': thinking_content,
+                'answer': answer_content,
+                'elapsed': elapsed
+            }, ensure_ascii=False)}\n\n"
             
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)}\n\n"
