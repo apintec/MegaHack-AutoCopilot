@@ -598,6 +598,13 @@
             return content;
         }
         
+        // HTML转义函数
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         // 发送消息
         async function sendMessage() {
             const message = messageInput.value.trim();
@@ -641,8 +648,21 @@
                 if (data.error) {
                     addMessage('assistant', `<span style="color: #dc3545;">错误: ${data.error}</span>`);
                 } else {
-                    const formattedContent = formatContent(data.response);
-                    addMessage('assistant', formattedContent);
+                    // 如果有思考过程，先显示思考中状态，再显示结果
+                    if (data.thinking && data.thinking.trim()) {
+                        // 显示思考过程（带折叠效果）
+                        const thinkingHtml = `
+                            <div style="margin-bottom: 10px;">
+                                <details style="background: #f8f9fa; border-radius: 8px; padding: 10px; border-left: 3px solid #667eea;">
+                                    <summary style="cursor: pointer; color: #667eea; font-weight: 500;">🤔 点击查看思考过程</summary>
+                                    <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px; color: #666; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${escapeHtml(data.thinking)}</div>
+                                </details>
+                            </div>
+                        `;
+                        addMessage('assistant', thinkingHtml + formatContent(data.response));
+                    } else {
+                        addMessage('assistant', formatContent(data.response));
+                    }
                     // 更新历史
                     chatHistory[chatHistory.length - 1][1] = data.response;
                 }

@@ -120,7 +120,13 @@ def chat():
         "messages": messages,
         "stream": False,
         "temperature": 0.7,
-        "max_tokens": 4000
+        "max_tokens": 4000,
+        "extra_body": {
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 3000
+            }
+        }
     }
     
     try:
@@ -135,12 +141,27 @@ def chat():
             return jsonify({'error': f'API请求失败: {response.status_code}'})
         
         result = response.json()
-        content = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+        message_data = result.get('choices', [{}])[0].get('message', {})
         
-        if content is None:
+        # 获取思考过程（如果模型支持）
+        thinking = message_data.get('thinking', '')
+        content = message_data.get('content', '')
+        
+        if content is None or content == '':
             content = "抱歉，未获取到有效回复"
         
-        return jsonify({'response': content})
+        # 如果没有thinking字段，尝试从content中提取
+        if not thinking and '<think>' in content:
+            # 尝试分离思考和回答
+            parts = content.split('</think>')
+            if len(parts) > 1:
+                thinking = parts[0].replace('<think>', '').strip()
+                content = parts[1].strip()
+        
+        return jsonify({
+            'response': content,
+            'thinking': thinking if thinking else ''
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)})
