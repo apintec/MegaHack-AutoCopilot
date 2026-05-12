@@ -15,15 +15,17 @@ if os.path.join(workspace, 'src') not in sys.path:
     sys.path.insert(0, os.path.join(workspace, 'src'))
 
 from langchain.agents import create_agent
-from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
 from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
-from coze_coding_utils.runtime_ctx.context import default_headers
+from coze_coding_dev_sdk import LLMClient
+from coze_coding_dev_sdk.llm.models import LLMConfig
+from coze_coding_utils.runtime_ctx.context import default_headers, new_context
 from storage.memory.memory_saver import get_memory_saver
 
 from tools import (
-    requirement_analysis,
+    analyze_requirement,
+    calculate_block_strategy,
     hardware_selection,
     algorithm_recommendation,
     code_generation,
@@ -75,30 +77,36 @@ def build_agent(ctx=None):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = json.load(f)
 
-    # 获取API凭证（支持用户自定义配置）
-    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("COZE_WORKLOAD_IDENTITY_API_KEY")
-    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("COZE_INTEGRATION_MODEL_BASE_URL")
-
-    # 初始化LLM
-    llm = ChatOpenAI(
+    # 创建LLM客户端（使用SDK方式）
+    if ctx is None:
+        ctx = new_context(method="build_agent")
+    
+    llm_client = LLMClient(ctx=ctx)
+    
+    # 创建LLM配置
+    llm_config = LLMConfig(
         model=cfg['config'].get("model"),
-        api_key=api_key,
-        base_url=base_url,
         temperature=cfg['config'].get('temperature', 0.7),
-        streaming=True,
-        timeout=cfg['config'].get('timeout', 600),
-        default_headers=default_headers(ctx) if ctx else {}
+        top_p=cfg['config'].get('top_p', 0.9),
+        max_tokens=cfg['config'].get('max_completion_tokens', 10000)
     )
+    
+    # 获取底层的ChatOpenAI实例
+    llm = llm_client._create_llm(llm_config)
 
     # 注册Agent工具
     tools = [
-        requirement_analysis,
+        analyze_requirement,
+        calculate_block_strategy,
         hardware_selection,
         algorithm_recommendation,
         code_generation,
         report_generation,
         intevega_code_generation,
-        intevega_model_selection
+        intevega_model_selection,
+        vap_code_generation,
+        vap_module_info,
+        vap_deployment_guide
     ]
 
     # 创建Agent
