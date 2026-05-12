@@ -95,7 +95,7 @@ def report_generation(project_data: str, report_format: str = "markdown", includ
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
-            model="doubao-seed-2-0-pro-260215",
+            model="mimo-v2.5",
             temperature=0.4,
             max_completion_tokens=10000
         )

@@ -61,9 +61,9 @@ def build_agent(ctx=None):
     with open(config_path, 'r', encoding='utf-8') as f:
         cfg = json.load(f)
 
-    # 获取API凭证
-    api_key = os.getenv("COZE_WORKLOAD_IDENTITY_API_KEY")
-    base_url = os.getenv("COZE_INTEGRATION_MODEL_BASE_URL")
+    # 获取API凭证（支持用户自定义配置）
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("COZE_WORKLOAD_IDENTITY_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL") or os.getenv("COZE_INTEGRATION_MODEL_BASE_URL")
 
     # 初始化LLM
     llm = ChatOpenAI(
@@ -73,11 +73,6 @@ def build_agent(ctx=None):
         temperature=cfg['config'].get('temperature', 0.7),
         streaming=True,
         timeout=cfg['config'].get('timeout', 600),
-        extra_body={
-            "thinking": {
-                "type": cfg['config'].get('thinking', 'disabled')
-            }
-        },
         default_headers=default_headers(ctx) if ctx else {}
     )
 

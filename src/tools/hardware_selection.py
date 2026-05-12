@@ -81,7 +81,7 @@ def hardware_selection(detection_requirements: str, product_specs: Optional[str]
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt}
             ],
-            model="doubao-seed-2-0-pro-260215",
+            model="mimo-v2.5",
             temperature=0.3,
             max_completion_tokens=5000
         )
