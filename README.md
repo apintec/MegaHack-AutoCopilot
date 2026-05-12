@@ -1,0 +1,2 @@
+# MegaHack-AutoCopilot
+Mega Hackathon
