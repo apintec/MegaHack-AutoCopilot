@@ -1929,11 +1929,19 @@
         }
         
         // 把累计的 thinking/answer 落成正式消息卡片（典型完成 / 被打断都走这里）
-        function renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, stopped) {
+        function renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, stopped, tokenUsage) {
             hideTyping();
             const stoppedTag = stopped
                 ? '<div style="color: #a0aec0; font-size: 12px; margin-top: 8px;">⏹ 已停止生成</div>'
                 : '';
+            
+            // Token 使用量显示
+            const tokenTag = tokenUsage
+                ? `<div style="font-size: 11px; color: #718096; margin-top: 8px;">
+                     💰 Token: 输入 ${tokenUsage.prompt_tokens} | 思考 ${tokenUsage.thinking_tokens} | 回答 ${tokenUsage.completion_tokens} | 总计 ${tokenUsage.total_tokens}
+                   </div>`
+                : '';
+            
             const safeAnswer = fullAnswer || (stopped ? '_（已停止）_' : '');
             if (fullThinking) {
                 const durationLabel = thinkingDuration
@@ -1949,9 +1957,9 @@
                         </div>
                     </details>
                 `;
-                addMessage('assistant', thinkingHtml + formatContent(safeAnswer, { asCard: true }) + stoppedTag);
+                addMessage('assistant', thinkingHtml + formatContent(safeAnswer, { asCard: true }) + tokenTag + stoppedTag);
             } else {
-                addMessage('assistant', formatContent(safeAnswer, { asCard: true }) + stoppedTag);
+                addMessage('assistant', formatContent(safeAnswer, { asCard: true }) + tokenTag + stoppedTag);
             }
             // 最终消息渲染完后，异步挂载 mermaid 流程图
             renderMermaidIn(chatMessages.lastElementChild);
@@ -1993,6 +2001,7 @@
             let fullAnswer = '';
             let thinkingDuration = 0;
             let thinkingFinalized = false;
+            let tokenUsage = null;
 
             const controller = new AbortController();
             currentController = controller;
@@ -2045,6 +2054,10 @@
                                     finalizeThinking(thinkingDuration);
                                     thinkingFinalized = true;
                                 }
+                                // 提取 token 使用量
+                                if (data.type === 'done' && data.usage) {
+                                    tokenUsage = data.usage;
+                                }
                             } else if (data.type === 'error' || data.error) {
                                 // 后端流被中断（read/write timeout、链路断、上游错误等）
                                 // 保留已经流出来的部分回答，附加错误提示，避免"页面突然停了一切清空"
@@ -2061,17 +2074,17 @@
                     }
                 }
 
-                renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, false);
+                renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, false, tokenUsage);
 
             } catch (error) {
                 if (error.name === 'AbortError') {
                     // 用户主动停止：保留已生成内容，标记"已停止"
-                    renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, true);
+                    renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, true, null);
                 } else {
                     // 网络异常：保留已经流到一半的回答 + 红色错误尾注，而不是直接清空
                     const errLine = `\n\n> ⚠ 网络错误: ${error.message}`;
                     const merged = (fullAnswer || '') + errLine;
-                    renderFinalAssistantMessage(fullThinking, merged, thinkingDuration, true);
+                    renderFinalAssistantMessage(fullThinking, merged, thinkingDuration, true, null);
                     console.error('[chat stream]', error);
                 }
             } finally {

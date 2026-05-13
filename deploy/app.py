@@ -21,6 +21,16 @@ API_KEY = "tp-cqp1essndwfovkwmbwlnuhse908h4r8rbzw7djmztr1ywxtc"
 API_BASE_URL = "https://token-plan-cn.xiaomimimo.com/v1"
 MODEL = "mimo-v2.5"
 
+def estimate_tokens(text: str) -> int:
+    """估算中英混合文本的 token 数量（粗略估算：中文约2字符/token，英文约0.75词/token）"""
+    if not text:
+        return 0
+    # 中文字符约每2个字符1个token
+    chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    # 非中文字符（英文、数字、标点等）约每4个字符1个token
+    other_chars = len(text) - chinese_chars
+    return int(chinese_chars / 2 + other_chars / 4)
+
 # ============== 路由 ==============
 @app.route('/')
 def index():
@@ -348,11 +358,26 @@ def chat_stream():
                 yield _emit({'type': 'error', 'error': f'上游响应被中断: {e}'})
                 return
 
+            # 估算 token 使用量（粗略估算）
+            # 输入 = system prompt + 历史消息 + 当前消息
+            # 注意：这里只计算当前消息和历史记录，实际 token 以 API 返回为准
+            input_text = str(history) + ' ' + message
+            prompt_tokens = estimate_tokens(input_text)
+            thinking_tokens = estimate_tokens(thinking_content)
+            completion_tokens = estimate_tokens(answer_content)
+            total_tokens = prompt_tokens + thinking_tokens + completion_tokens
+
             yield _emit({
                 'type': 'done',
                 'thinking': thinking_content,
                 'answer': answer_content,
                 'elapsed': round(time.time() - start_time, 1),
+                'usage': {
+                    'prompt_tokens': prompt_tokens,
+                    'thinking_tokens': thinking_tokens,
+                    'completion_tokens': completion_tokens,
+                    'total_tokens': total_tokens,
+                }
             })
 
         except GeneratorExit:
