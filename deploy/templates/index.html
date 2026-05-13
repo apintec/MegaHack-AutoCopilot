@@ -199,6 +199,7 @@
             display: flex;
             gap: 12px;
             align-items: flex-end;
+            position: relative;  /* 给 preview-container 提供定位基准 */
         }
         
         .input-wrapper {
@@ -277,29 +278,39 @@
             color: white;
         }
         
+        /* 图片预览：脱离文档流，浮在输入区上方右侧，
+           保证上传图片后对话框位置不变 */
         .preview-container {
-            margin-top: 8px;
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 8px);
             display: none;
+            align-items: flex-end;
+            gap: 8px;
+            z-index: 5;
         }
-        
+
         .preview-container.show {
-            display: block;
+            display: inline-flex;
         }
-        
+
         .preview-image {
             max-width: 150px;
             max-height: 100px;
             border-radius: 8px;
             border: 2px solid #667eea;
+            display: block;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
         }
-        
+
         .preview-actions {
-            margin-top: 4px;
+            margin-top: 0;
         }
-        
+
         .preview-actions button {
             font-size: 12px;
-            padding: 4px 8px;
+            padding: 4px 10px;
         }
         
         .error {
@@ -374,21 +385,23 @@
                 </div>
                 
                 <div class="chat-input-area">
+                    <!-- 浮于输入区右上的图片预览（绝对定位，不影响下方对话框位置） -->
+                    <div class="preview-container" id="previewContainer">
+                        <img id="previewImage" class="preview-image">
+                        <div class="preview-actions">
+                            <button class="btn btn-secondary" onclick="removeImage()">移除</button>
+                        </div>
+                    </div>
+
                     <button class="btn btn-upload" id="uploadBtn" title="上传图片">
                         📷
                     </button>
                     <input type="file" id="imageInput" accept="image/*" style="display: none;">
-                    
+
                     <div class="input-wrapper">
                         <textarea id="messageInput" placeholder="输入您的检测需求..." rows="1"></textarea>
-                        <div class="preview-container" id="previewContainer">
-                            <img id="previewImage" class="preview-image">
-                            <div class="preview-actions">
-                                <button class="btn btn-secondary" onclick="removeImage()">移除</button>
-                            </div>
-                        </div>
                     </div>
-                    
+
                     <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">
                         <span>发送</span>
                     </button>
@@ -707,17 +720,21 @@
             }
             
             sendBtn.disabled = true;
-            
-            // 添加用户消息
-            addMessage('user', message, selectedImage);
-            
+
+            // 缓存待发送的图片，下方 fetch 用；之后立刻清掉输入区预览
+            const imageToSend = selectedImage;
+
+            // 添加用户消息（气泡里仍带图）
+            addMessage('user', message, imageToSend);
+
             // 保存历史
             chatHistory.push([message, null]);
-            
-            // 清空输入
+
+            // 清空输入框 + 图片预览（即时视觉反馈，不等待响应）
             messageInput.value = '';
             messageInput.style.height = 'auto';
-            
+            removeImage();
+
             // 显示加载
             showTyping();
             
@@ -735,7 +752,7 @@
                     body: JSON.stringify({
                         message: message,
                         history: chatHistory.slice(0, -1),
-                        image: selectedImage
+                        image: imageToSend
                     })
                 });
                 
@@ -822,9 +839,7 @@
                 hideTyping();
                 addMessage('assistant', `<span style="color: #dc3545;">网络错误: ${error.message}</span>`);
             }
-            
-            // 清空图片
-            removeImage();
+
             sendBtn.disabled = false;
         }
     </script>
