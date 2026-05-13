@@ -5,8 +5,9 @@
 import os
 import sys
 import json
+import time
 import requests
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
 # 添加项目根目录到sys.path
@@ -124,98 +125,107 @@ def chat_stream():
         }
     }
     
-    import time
-    
     def generate():
+        # 击穿浏览器 SSE 首字节缓冲（Chrome/Edge 大约 2KB），先送一条注释占位
+        # 这样首个真实事件就能立刻被前端 EventSource 触发
+        yield ':' + (' ' * 2048) + '\n\n'
+
         start_time = time.time()
         thinking_content = ""
         answer_content = ""
-        
+        buffer = b""
+
+        def _emit(payload_dict):
+            return 'data: ' + json.dumps(payload_dict, ensure_ascii=False) + '\n\n'
+
+        def _parse_delta(raw_line: bytes):
+            """解析一条 SSE data 行，返回 (rc_text, content_text, is_done)"""
+            line = raw_line.strip()
+            if not line or not line.startswith(b'data: '):
+                return None, None, False
+            data_str = line[6:].decode('utf-8', errors='replace')
+            if data_str == '[DONE]':
+                return None, None, True
+            try:
+                chunk_obj = json.loads(data_str)
+            except json.JSONDecodeError:
+                return None, None, False
+            choices = chunk_obj.get('choices', [])
+            if not choices:
+                return None, None, False
+            delta = choices[0].get('delta', {}) or {}
+            return delta.get('reasoning_content'), delta.get('content'), False
+
         try:
             response = requests.post(
                 f"{API_BASE_URL}/chat/completions",
                 headers=headers,
                 json=payload,
                 stream=True,
-                timeout=600
+                timeout=600,
             )
-            
+
             if response.status_code != 200:
-                error_json = json.dumps({'error': 'API请求失败: ' + str(response.status_code)}, ensure_ascii=False)
-                yield 'data: ' + error_json + '\n\n'
+                yield _emit({
+                    'type': 'error',
+                    'error': f'API请求失败: {response.status_code}',
+                })
                 return
-            
-            # 流式读取响应 - 先收集思考过程，再收集回答
-            thinking_chunks = []
-            answer_chunks = []
-            
-            for line in response.iter_lines():
-                if line:
-                    line_text = line.decode('utf-8')
-                    if line_text.startswith('data: '):
-                        data_str = line_text[6:]
-                        if data_str == '[DONE]':
+
+            try:
+                # chunk_size=None：urllib3 一拿到 HTTP chunk 就吐给我们，
+                # 自己按 \n 拆 SSE，避免 iter_lines 的行级累积
+                done_flag = False
+                for chunk in response.iter_content(chunk_size=None, decode_unicode=False):
+                    if not chunk:
+                        continue
+                    buffer += chunk
+                    while b'\n' in buffer:
+                        raw_line, _, buffer = buffer.partition(b'\n')
+                        rc, content, is_done = _parse_delta(raw_line)
+                        if is_done:
+                            done_flag = True
+                            buffer = b''
                             break
-                        
-                        try:
-                            chunk = json.loads(data_str)
-                            choices = chunk.get('choices', [])
-                            if not choices:
-                                continue
-                            delta = choices[0].get('delta', {})
-                            
-                            # 收集思考过程
-                            if 'reasoning_content' in delta:
-                                rc = delta['reasoning_content']
-                                if rc:
-                                    thinking_chunks.append(rc)
-                                    thinking_content += rc
-                            
-                            # 收集回答内容
-                            if 'content' in delta:
-                                content = delta['content']
-                                if content:
-                                    answer_chunks.append(content)
-                                    answer_content += content
-                                    
-                        except json.JSONDecodeError:
-                            continue
-            
-            # 思考过程：按行流式输出（流畅效果）
-            import time as t
-            import re
-            
-            # 按换行符分割，每行作为一段
-            thinking_lines = thinking_content.split('\n')
-            accumulated = ''
-            for line in thinking_lines:
-                if line.strip():  # 非空行
-                    accumulated += line + '\n'
-                    elapsed = round(time.time() - start_time, 1)
-                    data_json = json.dumps({
-                        'type': 'thinking',
-                        'content': accumulated,
-                        'elapsed': elapsed
-                    }, ensure_ascii=False)
-                    yield 'data: ' + data_json + '\n\n'
-                    # 每行延迟150ms，速度适中
-                    t.sleep(0.15)
-            
-            # 发送完成信号（包含完整思考和回答）
-            elapsed = round(time.time() - start_time, 1)
-            done_json = json.dumps({
+                        if rc:
+                            thinking_content += rc
+                            yield _emit({
+                                'type': 'thinking',
+                                'content': thinking_content,
+                                'elapsed': round(time.time() - start_time, 1),
+                            })
+                        if content:
+                            answer_content += content
+                            yield _emit({
+                                'type': 'answer',
+                                'content': answer_content,
+                                'elapsed': round(time.time() - start_time, 1),
+                            })
+                    if done_flag:
+                        break
+            finally:
+                response.close()
+
+            yield _emit({
                 'type': 'done',
                 'thinking': thinking_content,
                 'answer': answer_content,
-                'elapsed': elapsed
-            }, ensure_ascii=False)
-            yield 'data: ' + done_json + '\n\n'
-            
+                'elapsed': round(time.time() - start_time, 1),
+            })
+
         except Exception as e:
-            error_json = json.dumps({'type': 'error', 'error': str(e)}, ensure_ascii=False)
-            yield 'data: ' + error_json + '\n\n'
-    
-    return Response(generate(), mimetype='text/event-stream')
+            yield _emit({'type': 'error', 'error': str(e)})
+
+    sse_headers = {
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive',
+    }
+    return Response(
+        stream_with_context(generate()),
+        mimetype='text/event-stream',
+        headers=sse_headers,
+    )
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -321,7 +331,6 @@ def chat():
     }
     
     try:
-        import time
         start_time = time.time()
         response = requests.post(
             f"{API_BASE_URL}/chat/completions",
@@ -558,4 +567,6 @@ if __name__ == '__main__':
     ║          启动中... http://localhost:8080                    ║
     ╚══════════════════════════════════════════════════════════════╝
     """)
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    # threaded=True 确保 SSE 长连接独占一个线程，不阻塞其它请求；
+    # use_reloader=False 避免 reloader 进程包裹导致的 stdio/socket 缓冲
+    app.run(host='0.0.0.0', port=8080, debug=False, threaded=True, use_reloader=False)

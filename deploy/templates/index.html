@@ -540,13 +540,18 @@
             typingDiv.innerHTML = `
                 <div class="message-content">
                     <div class="message-typing" id="thinkingArea" style="display: flex; flex-direction: column; gap: 8px;">
-                        <div id="thinkingDots" style="display: flex; gap: 4px;">
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
+                        <div id="thinkingHeader" style="display: flex; align-items: center; gap: 8px;">
+                            <div id="thinkingDots" style="display: flex; gap: 4px;">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                            <span id="thinkingLabel" style="font-size: 13px; color: #4a5568; font-weight: 500; display: none;">深度思考中</span>
+                            <span id="thinkingTime" style="font-size: 12px; color: #a0aec0; font-variant-numeric: tabular-nums; display: none;"></span>
                         </div>
-                        <div id="thinkingText" style="font-size: 13px; color: #718096; line-height: 1.6; max-height: 150px; overflow: hidden; white-space: pre-wrap; display: none;"></div>
+                        <div id="thinkingText" style="font-size: 13px; color: #718096; line-height: 1.6; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; padding-right: 6px;"></div>
                     </div>
+                    <div id="answerStream" style="display: none; margin-top: 10px; color: #2d3748; font-size: 14px; line-height: 1.7; word-break: break-word;"></div>
                 </div>
             `;
             chatMessages.appendChild(typingDiv);
@@ -554,19 +559,79 @@
             isTyping = true;
         }
         
+        // 格式化思考时长，输入秒数（可能是 float），输出形如 "1.2s" / "1分23.4s"
+        function formatDuration(seconds) {
+            if (seconds == null || isNaN(seconds)) return '';
+            const s = Number(seconds);
+            if (s < 60) return s.toFixed(1) + 's';
+            const m = Math.floor(s / 60);
+            const rem = s - m * 60;
+            return m + '分' + rem.toFixed(1) + 's';
+        }
+
         // 更新思考内容（流式）
-        function updateThinking(content) {
-            const thinkingArea = document.getElementById('thinkingArea');
+        function updateThinking(content, elapsed) {
             const thinkingDots = document.getElementById('thinkingDots');
+            const thinkingLabel = document.getElementById('thinkingLabel');
+            const thinkingTime = document.getElementById('thinkingTime');
             const thinkingText = document.getElementById('thinkingText');
-            if (thinkingArea && thinkingDots && thinkingText) {
-                if (content) {
-                    thinkingDots.style.display = 'none';
-                    thinkingText.style.display = 'block';
-                    thinkingText.textContent = content;
+            if (!thinkingText) return;
+
+            if (content) {
+                if (thinkingDots) thinkingDots.style.display = 'none';
+                if (thinkingLabel) {
+                    thinkingLabel.style.display = 'inline';
+                    thinkingLabel.textContent = '深度思考中';
                 }
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                thinkingText.style.display = 'block';
+                thinkingText.textContent = content;
+                // 思考容器有 max-height，需主动滚到底部，避免新追加的字被裁
+                thinkingText.scrollTop = thinkingText.scrollHeight;
             }
+            if (thinkingTime && elapsed != null) {
+                thinkingTime.style.display = 'inline';
+                thinkingTime.textContent = formatDuration(elapsed);
+            }
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // 思考结束：把"深度思考中"切换成"已深度思考"，并锁定时长
+        function finalizeThinking(elapsed) {
+            const thinkingDots = document.getElementById('thinkingDots');
+            const thinkingLabel = document.getElementById('thinkingLabel');
+            const thinkingTime = document.getElementById('thinkingTime');
+            if (thinkingDots) thinkingDots.style.display = 'none';
+            if (thinkingLabel) {
+                thinkingLabel.style.display = 'inline';
+                thinkingLabel.textContent = '已深度思考';
+            }
+            if (thinkingTime && elapsed != null) {
+                thinkingTime.style.display = 'inline';
+                thinkingTime.textContent = '用时 ' + formatDuration(elapsed);
+            }
+        }
+
+        // 更新回答内容（流式）
+        // 用 rAF 节流：流式 token 频率可能很高，每帧最多重排一次，
+        // 避免大段累计内容下的 innerHTML 重写阻塞主线程
+        let _answerPending = null;
+        let _answerRafId = 0;
+        function updateAnswer(content) {
+            _answerPending = content;
+            if (_answerRafId) return;
+            _answerRafId = requestAnimationFrame(() => {
+                _answerRafId = 0;
+                const answerStream = document.getElementById('answerStream');
+                if (!answerStream || _answerPending == null) return;
+                const c = _answerPending;
+                _answerPending = null;
+                answerStream.style.display = 'block';
+                answerStream.innerHTML = formatContent(c);
+                // 思考圆点还在的话也收掉，避免视觉冲突
+                const dots = document.getElementById('thinkingDots');
+                if (dots) dots.style.display = 'none';
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
         }
         
         // 隐藏加载动画
@@ -658,7 +723,9 @@
             
             let fullThinking = '';
             let fullAnswer = '';
-            
+            let thinkingDuration = 0;        // 思考耗时（秒），由第一个 answer 事件的 elapsed 锁定
+            let thinkingFinalized = false;   // 是否已锁定思考时长
+
             try {
                 const response = await fetch('/api/chat/stream', {
                     method: 'POST',
@@ -692,16 +759,28 @@
                                 const data = JSON.parse(line.slice(6));
                                 
                                 if (data.type === 'thinking') {
-                                    // 实时更新思考内容
+                                    // 实时更新思考内容 + 计时
                                     fullThinking = data.content;
-                                    updateThinking(fullThinking);
+                                    updateThinking(fullThinking, data.elapsed);
                                 } else if (data.type === 'answer') {
-                                    // 更新回答内容
+                                    // 首个 answer 到达 → 思考结束，锁定时长
+                                    if (!thinkingFinalized && fullThinking) {
+                                        thinkingDuration = data.elapsed != null ? data.elapsed : thinkingDuration;
+                                        finalizeThinking(thinkingDuration);
+                                        thinkingFinalized = true;
+                                    }
                                     fullAnswer = data.content;
+                                    updateAnswer(fullAnswer);
                                 } else if (data.type === 'done') {
-                                    // 完成
+                                    // 兜底：done 事件里也带了完整 thinking/answer
                                     if (data.answer) {
                                         fullAnswer = data.answer;
+                                    }
+                                    // 极端情况下 answer 阶段没收到任何包就直接 done，这里再补一次锁定
+                                    if (!thinkingFinalized && fullThinking && data.elapsed != null) {
+                                        thinkingDuration = data.elapsed;
+                                        finalizeThinking(thinkingDuration);
+                                        thinkingFinalized = true;
                                     }
                                 } else if (data.error) {
                                     fullAnswer = '错误: ' + data.error;
@@ -718,10 +797,13 @@
                 
                 // 添加助手消息
                 if (fullThinking) {
+                    const durationLabel = thinkingDuration
+                        ? `<span style="margin-left: auto; font-size: 12px; color: #cbd5e0; font-weight: 400; font-variant-numeric: tabular-nums;">用时 ${formatDuration(thinkingDuration)}</span>`
+                        : '';
                     const thinkingHtml = `
                         <details style="margin-bottom: 15px; border-radius: 10px; overflow: hidden;">
                             <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); color: #e2e8f0; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                                <span style="transition: transform 0.2s;">▶</span> 已深度思考
+                                <span style="transition: transform 0.2s;">▶</span> 已深度思考${durationLabel}
                             </summary>
                             <div style="padding: 16px; background: #f7fafc; color: #2d3748; font-size: 13px; line-height: 1.8; white-space: pre-wrap; border: 1px solid #e2e8f0; border-top: none;">
                                 ${formatThinking(fullThinking)}
