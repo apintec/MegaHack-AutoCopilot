@@ -53,7 +53,7 @@ class GraphService:
         self._graph = None
         self._graph_lock = threading.Lock()
 
-    def _get_graph(self, ctx=Context):
+    def _get_graph(self, ctx: Optional[Context] = None):
         if graph_helper.is_agent_proj():
             return graph_helper.get_agent_instance("agents.agent", ctx)
 
@@ -77,7 +77,7 @@ class GraphService:
             return self._workflow_stream_runner
 
     # 流式运行（原始迭代器）：本地调用使用
-    def stream(self, payload: Dict[str, Any], run_config: RunnableConfig, ctx=Context) -> Iterable[Any]:
+    def stream(self, payload: Dict[str, Any], run_config: RunnableConfig, ctx: Optional[Context] = None) -> Iterable[Any]:
         graph = self._get_graph(ctx)
         stream_runner = self._get_stream_runner()
         for chunk in stream_runner.stream(payload, graph, run_config, ctx):
@@ -211,23 +211,24 @@ class GraphService:
     def graph_inout_schema(self) -> Any:
         if graph_helper.is_agent_proj():
             return {"input_schema": {}, "output_schema": {}}
-        builder = getattr(self._get_graph(), 'builder', None)
+        graph = self._get_graph()
+        builder = getattr(graph, 'builder', None)
         if builder is not None:
-            input_cls = getattr(builder, 'input_schema', None) or self.graph.get_input_schema()
-            output_cls = getattr(builder, 'output_schema', None) or self.graph.get_output_schema()
+            input_cls = getattr(builder, 'input_schema', None) or graph.get_input_schema()
+            output_cls = getattr(builder, 'output_schema', None) or graph.get_output_schema()
         else:
-            logger.warning(f"No builder input schema found for graph_inout_schema, using graph input schema instead")
-            input_cls = self.graph.get_input_schema()
-            output_cls = self.graph.get_output_schema()
+            logger.warning("No builder input schema found for graph_inout_schema, using graph input schema instead")
+            input_cls = graph.get_input_schema()
+            output_cls = graph.get_output_schema()
 
         return {
-            "input_schema": input_cls.model_json_schema(), 
+            "input_schema": input_cls.model_json_schema(),
             "output_schema": output_cls.model_json_schema(),
-            "code":0,
-            "msg":""
+            "code": 0,
+            "msg": "",
         }
 
-    async def astream(self, payload: Dict[str, Any], graph: CompiledStateGraph, run_config: RunnableConfig, ctx=Context, run_opt: Optional[RunOpt] = None) -> AsyncIterable[Any]:
+    async def astream(self, payload: Dict[str, Any], graph: CompiledStateGraph, run_config: RunnableConfig, ctx: Optional[Context] = None, run_opt: Optional[RunOpt] = None) -> AsyncIterable[Any]:
         stream_runner = self._get_stream_runner()
         async for chunk in stream_runner.astream(payload, graph, run_config, ctx, run_opt):
             yield chunk
@@ -243,7 +244,6 @@ openai_handler = OpenAIChatHandler(service)
 HEADER_X_RUN_ID = "x-run-id"
 @app.post("/run")
 async def http_run(request: Request) -> Dict[str, Any]:
-    global result
     raw_body = await request.body()
     try:
         body_text = raw_body.decode("utf-8")
@@ -275,18 +275,19 @@ async def http_run(request: Request) -> Dict[str, Any]:
         service.running_tasks[run_id] = task
 
         try:
-            result = await asyncio.wait_for(task, timeout=float(TIMEOUT_SECONDS))
+            result: Any = await asyncio.wait_for(task, timeout=float(TIMEOUT_SECONDS))
         except asyncio.TimeoutError:
             logger.error(f"Run execution timeout after {TIMEOUT_SECONDS}s for run_id: {run_id}")
             task.cancel()
             try:
-                result = await task
+                await task
             except asyncio.CancelledError:
-                return {
-                    "status": "timeout",
-                    "run_id": run_id,
-                    "message": f"Execution timeout: exceeded {TIMEOUT_SECONDS} seconds"
-                }
+                pass
+            return {
+                "status": "timeout",
+                "run_id": run_id,
+                "message": f"Execution timeout: exceeded {TIMEOUT_SECONDS} seconds",
+            }
 
         if not result:
             result = {}
@@ -300,8 +301,7 @@ async def http_run(request: Request) -> Dict[str, Any]:
 
     except asyncio.CancelledError:
         logger.info(f"Request cancelled for run_id: {run_id}")
-        result = {"status": "cancelled", "run_id": run_id, "message": "Execution was cancelled"}
-        return result
+        return {"status": "cancelled", "run_id": run_id, "message": "Execution was cancelled"}
 
     except Exception as e:
         # 使用错误分类器获取错误信息

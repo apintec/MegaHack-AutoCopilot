@@ -4,9 +4,10 @@
 # pip install pyinstaller python-dotenv
 # pyinstaller --onefile --name AutoCopilot --icon=icon.ico --add-data "src;src" deploy/autocopilot_client.py
 
+import sys
+
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
-# 收集依赖
 datas = []
 hiddenimports = [
     'requests',
@@ -18,7 +19,7 @@ hiddenimports = [
     'idna',
 ]
 
-# Windows特定配置
+# Windows 特定补丁：交互式控制台依赖
 if sys.platform == 'win32':
     hiddenimports += [
         'pyreadline3',

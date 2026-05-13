@@ -18,7 +18,7 @@ from langchain.agents import create_agent
 from langchain_openai import ChatOpenAI
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
-from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
 from coze_coding_utils.runtime_ctx.context import default_headers, new_context
 from storage.memory.memory_saver import get_memory_saver
 
@@ -42,10 +42,51 @@ LLM_CONFIG = "config/agent_llm_config.json"
 MAX_MESSAGES = 40
 
 
+def _tool_call_id(tc) -> Optional[str]:
+    """从 tool_call 项中提取 id，兼容 dict 与 pydantic 对象两种形态"""
+    if isinstance(tc, dict):
+        return tc.get('id')
+    return getattr(tc, 'id', None)
+
+
 def _windowed_messages(old: list, new: list) -> list:
-    """滑动窗口: 只保留最近 MAX_MESSAGES 条消息"""
-    combined = add_messages(old, new)
-    return list(combined)[-MAX_MESSAGES:]
+    """滑动窗口: 保留最近 MAX_MESSAGES 条消息，并修剪头部"孤儿"消息。
+
+    LangGraph / OpenAI 协议要求 ``ToolMessage`` 前必须紧跟一条带 ``tool_calls``
+    的 ``AIMessage``，且 ``AIMessage.tool_calls`` 的每个 id 都要在后续找到对应
+    的 ``ToolMessage``。粗暴 ``[-N:]`` 切片可能把这种配对切散，导致下一次
+    LLM 调用直接 400。这里在窗口头部做一次清理：
+      - 开头是孤立的 ``ToolMessage`` → 丢弃
+      - 开头是 ``AIMessage(tool_calls=...)`` 但其需要的 tool_call_id 没全部
+        出现在后续窗口里 → 丢弃
+    直到首条不再是孤儿为止。
+    """
+    combined = list(add_messages(old, new))
+    if len(combined) <= MAX_MESSAGES:
+        return combined
+
+    window = combined[-MAX_MESSAGES:]
+
+    while window:
+        first = window[0]
+        if isinstance(first, ToolMessage):
+            window.pop(0)
+            continue
+        if isinstance(first, AIMessage):
+            tool_calls = getattr(first, 'tool_calls', None) or []
+            if tool_calls:
+                needed = {tcid for tcid in (_tool_call_id(tc) for tc in tool_calls) if tcid}
+                seen = {
+                    getattr(m, 'tool_call_id', None)
+                    for m in window[1:]
+                    if isinstance(m, ToolMessage)
+                }
+                if needed and not needed.issubset(seen):
+                    window.pop(0)
+                    continue
+        break
+
+    return window
 
 
 def _update_project_context(old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
