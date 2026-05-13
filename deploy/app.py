@@ -27,8 +27,22 @@ def index():
     """主页"""
     return render_template('index.html')
 
-# ============== 系统提示词 ==============
-SYSTEM_PROMPT = """你是工业视觉检测AI专家，专注于为工业自动化领域提供智能解决方案。
+# ============== 系统提示词 & 知识库（启动时加载一次） ==============
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _read_text_safe(path: str) -> str:
+    """读取文本文件；失败时返回空串并打 warn 日志，不阻塞启动。"""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except Exception as e:
+        print(f"[WARN] 读取参考资料失败: {path} ({e})", file=sys.stderr)
+        return ""
+
+
+# 兜底用的精简版 SP，仅在 config/agent_llm_config.json 读不到时启用
+_FALLBACK_SP = """你是工业视觉检测AI专家，专注于为工业自动化领域提供智能解决方案。
 
 ## 核心能力
 1. **需求评估**：根据产品尺寸、检测精度、TT耗时等参数，评估检测方案可行性
@@ -37,38 +51,116 @@ SYSTEM_PROMPT = """你是工业视觉检测AI专家，专注于为工业自动�
 4. **代码生成**：生成完整的检测代码（C#/Python）
 5. **方案设计**：输出符合行业标准的技术方案文档
 
-## 技术规范（基于华星RFQ标准）
-- 漏检率：<0.5%
-- 误检率：<1-2%
-- 像素当量计算：缺陷尺寸/2
-- 线扫相机适用：TT<5秒的高速检测
-- 面阵相机适用：TT>5秒的低速检测
-
-## 光源选型指南
-- 同轴光源：表面划伤、凹坑、气泡
-- 背光源：透明物体内部缺陷
-- 低角度环形光：边缘缺陷、刻印检测
-- 条形光源：大面积均匀照明
-- 穹顶光源：漫反射表面，消除反光
-
-## 工控机配置标准（基于华星PPT）
-- 高配：i9-13900K + RTX 4070Ti + 64GB（多相机系统）
-- 中配：i7-12700K + RTX 4060 + 32GB（单相机系统）
-- 低配：i5-12400 + RTX 3050 + 16GB（简单检测）
-
-## 算法SDK
-- Vap = Vision AI Project（视觉AI项目的统称）
-- Badt.Fi = Badt现场的Fi项目专用算法
-- Vap SDK：基于HALCON 21.5的视觉检测库，适合气泡、划伤、异物等缺陷检测
-- InteVega SDK：大图推理加速，支持多线程并行处理
-
 ## 回复规范
 - 使用中文回复
 - 技术参数用表格展示
 - 代码使用代码块
-- 方案使用结构化格式
 - 保持专业、简洁
 """
+
+
+def _load_base_sp() -> str:
+    """优先加载 config/agent_llm_config.json 里的详细 sp，读不到则用兜底版。"""
+    candidate_paths = [
+        os.path.join(_PROJECT_ROOT, "config", "agent_llm_config.json"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_llm_config.json"),
+    ]
+    for p in candidate_paths:
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                cfg = json.load(f)
+            sp = (cfg.get('sp') or '').strip()
+            if sp:
+                print(f"[INFO] 已加载详细 system prompt: {p} ({len(sp)} 字符)")
+                return sp
+        except Exception as e:
+            print(f"[WARN] 解析 {p} 失败: {e}", file=sys.stderr)
+    print("[WARN] 未找到 agent_llm_config.json，使用兜底精简 SP", file=sys.stderr)
+    return _FALLBACK_SP
+
+
+_BASE_SP = _load_base_sp()
+
+# SDK 详细文档（真实 API、结构体、调用流程）——按需注入，避免常规对话浪费 token
+_INTEVEGA_DOC = _read_text_safe(
+    os.path.join(_PROJECT_ROOT, "assets", "SDK_speed_up_Instruction_document.md")
+)
+_VAP_DOC = _read_text_safe(
+    os.path.join(_PROJECT_ROOT, "assets", "Vap.Algo.Badt.Fi_API手册.md")
+)
+print(f"[INFO] 知识库加载: InteVega={len(_INTEVEGA_DOC)} chars, Vap={len(_VAP_DOC)} chars")
+
+# 前端可视化能力说明：告诉模型本前端能直接渲染哪些图表
+_RENDER_CAPABILITIES = """
+
+# 可视化输出能力（重要）
+本前端已集成 Mermaid 渲染引擎，可以**直接展示**流程图等可视化图表，无需用户复制到外部工具。
+- 当用户要求"流程图 / 时序图 / 状态图 / 思维导图 / 类图 / 甘特图 / 架构图"时，**必须使用 ```mermaid 代码块**输出 Mermaid 语法。系统会自动渲染为可视化图表（并提供 SVG/PNG 下载、复制源码按钮）。
+- **严禁**再说"请在 VS Code / Typora / GitHub 中渲染"或"复制到 Mermaid 编辑器查看"——本系统直接显示。
+- 节点标签使用中文，保持简洁（建议 ≤ 20 个节点，过长图请拆分为多个）。
+- 推荐图类型：
+  - 算法/业务流程 → `flowchart TD` 或 `flowchart LR`
+  - 调用时序 → `sequenceDiagram`
+  - 状态机 → `stateDiagram-v2`
+  - 类结构 → `classDiagram`
+  - 时间排程 → `gantt`
+- 代码块外可补一句简短文字说明，但不要重复贴一遍 Mermaid 源码。
+
+代码生成（C# / Python 等）走 ```cs / ```python 代码块，前端会自动转成"文件卡片"，点击可打开右侧抽屉预览，可复制、可下载为对应文件（.cs / .py 等）。
+"""
+
+# 注入参考资料时附加的"使用规则"——告诉模型必须基于文档而非凭空生成
+_KB_USAGE_RULES = """
+# 参考资料使用规则（强制）
+下文「参考资料」节给出了相关 SDK 的真实 C# API、结构体定义和调用流程，请严格遵守：
+1. **不允许虚构 API**：生成代码时函数名、结构体字段、枚举值必须来自参考资料；若文档未涵盖，明确告知"该 API 在已知文档中未提供"，不要凭空猜测。
+2. **优先复用文档代码片段**：GPU 内存申请、图像拷贝、推理句柄创建、结果解析等通用步骤，直接引用文档示例。
+3. **完整调用流程**：包含初始化、推理、结果解析、资源释放（避免内存泄漏）。
+4. **代码末尾**：用一句话指出参考了文档哪一节（例："参考: §3 目标检测使用示例"）。
+"""
+
+# 关键字触发表：用户消息或历史里命中即注入对应文档
+_INTEVEGA_KEYWORDS = (
+    'intevega', 'inte vega', 'inte-vega', 'intelvega',
+    'ovg', 'tvg', 'slicewidth', 'sliceheight', 'sliceoverlooprate',
+    'inferdetectoranalysis', 'createdetectorhandle', 'mallocimgbufferoncuda',
+    'tmodelopenparam', 'tbboxscoreinfo',
+)
+_VAP_KEYWORDS = (
+    'vap', 'badt.fi', 'badt', 'halcon', 'bubbledetect',
+    'ialgobase', 'baseinspectionalgo', 'algomodule', 'singledefect',
+)
+
+
+def _build_kb_block(message: str, history) -> str:
+    """根据用户上下文挑选要注入的 SDK 文档，按关键字门控以节省 token。"""
+    parts = [(message or '')]
+    for h in (history or []):
+        if h and len(h) >= 2:
+            parts.append(h[0] or '')
+            parts.append(h[1] or '')
+    haystack = ' '.join(parts).lower()
+
+    blocks = []
+    if _INTEVEGA_DOC and any(k in haystack for k in _INTEVEGA_KEYWORDS):
+        blocks.append(
+            "## 【参考资料 A】InteVega SDK 大图加速推理使用说明（C#）\n\n" + _INTEVEGA_DOC
+        )
+    if _VAP_DOC and any(k in haystack for k in _VAP_KEYWORDS):
+        blocks.append(
+            "## 【参考资料 B】Vap.Algo.Badt.Fi API 手册（C#）\n\n" + _VAP_DOC
+        )
+
+    if not blocks:
+        return ""
+    return _KB_USAGE_RULES + "\n\n# 参考资料\n\n" + "\n\n---\n\n".join(blocks)
+
+
+def _build_system_prompt(message: str, history) -> str:
+    """合成最终 system prompt：基础 SP + 前端能力声明 + 按需注入的 SDK 文档块。"""
+    return _BASE_SP + _RENDER_CAPABILITIES + _build_kb_block(message, history)
 
 @app.route('/api/chat/stream', methods=['POST'])
 def chat_stream():
@@ -94,7 +186,11 @@ def chat_stream():
             if assistant_msg:
                 messages.append({"role": "assistant", "content": assistant_msg})
     
-    messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+    # 动态拼接 system prompt：基础 SP + 按需注入的 SDK 详细文档
+    # 这样问"用 InteVega SDK 写..."时，模型能看到真实 API 与结构体定义，
+    # 而不是只看到一句"InteVega SDK：大图推理加速"导致凭空生成
+    full_sp = _build_system_prompt(message, history)
+    messages.insert(0, {"role": "system", "content": full_sp})
     
     # 如果有图片，添加到用户消息
     if image_data:
@@ -116,7 +212,9 @@ def chat_stream():
         "messages": messages,
         "stream": True,
         "temperature": 0.7,
-        "max_tokens": 4000,
+        # 8000：足够装下数百行 SDK 代码 + 中文说明 + 二级示例（如 Program.cs）。
+        # 之前 4000 在生成完 BubbleDefect.cs 这种长文件后，Program.cs 会被截断。
+        "max_tokens": 8000,
         "extra_body": {
             "thinking": {
                 "type": "enabled",
@@ -156,26 +254,61 @@ def chat_stream():
             delta = choices[0].get('delta', {}) or {}
             return delta.get('reasoning_content'), delta.get('content'), False
 
+        # timeout=(connect, read)：
+        # - connect 15s：上游不可达时快速失败
+        # - read 300s：覆盖两种场景——
+        #     a) 上传 body 的 socket write 等待（图片 base64 可达数 MB）
+        #     b) 两次成功 read 之间的最大间隔
+        upstream_timeout = (15, 300)
+        response = None
         try:
-            response = requests.post(
-                f"{API_BASE_URL}/chat/completions",
-                headers=headers,
-                json=payload,
-                stream=True,
-                timeout=600,
-            )
+            try:
+                response = requests.post(
+                    f"{API_BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    stream=True,
+                    timeout=upstream_timeout,
+                )
+            except requests.exceptions.ConnectTimeout:
+                yield _emit({'type': 'error', 'error': f'上游连接超时（>{upstream_timeout[0]}s 未建立 TCP），请检查网络后重试'})
+                return
+            except requests.exceptions.ReadTimeout:
+                yield _emit({'type': 'error', 'error': f'上游首字节响应超时（>{upstream_timeout[1]}s）'})
+                return
+            except requests.exceptions.ConnectionError as e:
+                err_str = str(e).lower()
+                if 'write operation' in err_str or 'broken pipe' in err_str:
+                    msg = '请求体发送超时（图片体积较大或网络较慢），可尝试压缩图片后重试'
+                elif 'aborted' in err_str:
+                    msg = '上游连接被中断，请稍后重试'
+                else:
+                    msg = f'上游连接失败: {e}'
+                yield _emit({'type': 'error', 'error': msg})
+                return
 
             if response.status_code != 200:
+                # 把上游 body 前 500 字节带回来，便于定位（如 context 超长、限流、鉴权等）
+                body_preview = ''
+                try:
+                    raw = b''
+                    for piece in response.iter_content(chunk_size=512):
+                        raw += piece
+                        if len(raw) >= 512:
+                            break
+                    body_preview = raw.decode('utf-8', errors='replace')[:500]
+                except Exception:
+                    pass
                 yield _emit({
                     'type': 'error',
-                    'error': f'API请求失败: {response.status_code}',
+                    'error': f'API请求失败: HTTP {response.status_code} | {body_preview}',
                 })
                 return
 
+            # chunk_size=None：urllib3 一拿到 HTTP chunk 就吐给我们，
+            # 自己按 \n 拆 SSE，避免 iter_lines 的行级累积
+            done_flag = False
             try:
-                # chunk_size=None：urllib3 一拿到 HTTP chunk 就吐给我们，
-                # 自己按 \n 拆 SSE，避免 iter_lines 的行级累积
-                done_flag = False
                 for chunk in response.iter_content(chunk_size=None, decode_unicode=False):
                     if not chunk:
                         continue
@@ -203,8 +336,17 @@ def chat_stream():
                             })
                     if done_flag:
                         break
-            finally:
-                response.close()
+            except requests.exceptions.ReadTimeout:
+                # 上游 token 之间长时间无字节：告知前端并优雅收尾
+                yield _emit({
+                    'type': 'error',
+                    'error': f'上游响应中断（>{upstream_timeout[1]}s 无数据）',
+                })
+                return
+            except requests.exceptions.ChunkedEncodingError as e:
+                # 上游链路中途断流
+                yield _emit({'type': 'error', 'error': f'上游响应被中断: {e}'})
+                return
 
             yield _emit({
                 'type': 'done',
@@ -213,8 +355,18 @@ def chat_stream():
                 'elapsed': round(time.time() - start_time, 1),
             })
 
+        except GeneratorExit:
+            # 客户端断开连接（fetch abort / 浏览器关闭）：不要把它当 error 发，
+            # 让 finally 关闭上游连接即可
+            raise
         except Exception as e:
             yield _emit({'type': 'error', 'error': str(e)})
+        finally:
+            if response is not None:
+                try:
+                    response.close()
+                except Exception:
+                    pass
 
     sse_headers = {
         'Cache-Control': 'no-cache, no-transform',

@@ -31,3 +31,7 @@ logs/
 
 # Coze
 .coze/
+
+# Cloudflare tunnel binary (downloaded on demand by deploy/share-public.bat)
+deploy/bin/
+*.exe

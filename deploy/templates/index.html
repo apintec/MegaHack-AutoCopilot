@@ -4,6 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工业视觉检测AI专家</title>
+
+    <!-- Mermaid 流程图渲染引擎（ESM CDN）。挂到 window 让普通脚本可用 -->
+    <script type="module">
+        try {
+            const mod = await import('https://esm.sh/mermaid@10');
+            const mermaid = mod.default || mod;
+            window.mermaid = mermaid;
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',                          // 深色主题与对话框协调
+                themeVariables: {
+                    background: 'transparent',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#e2e8f0',
+                    primaryBorderColor: '#7c3aed',
+                    lineColor: '#94a3b8',
+                    secondaryColor: '#0f172a',
+                    tertiaryColor: '#0b1220',
+                    fontFamily: 'inherit',
+                },
+                securityLevel: 'loose',
+                fontFamily: 'inherit',
+                flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
+                sequence: { useMaxWidth: true },
+                gantt: { useMaxWidth: true },
+            });
+            window.__mermaidReady = true;
+            document.dispatchEvent(new CustomEvent('mermaid:ready'));
+        } catch (e) {
+            console.warn('[mermaid] 加载失败，流程图将以源码方式展示', e);
+            window.__mermaidFailed = true;
+            document.dispatchEvent(new CustomEvent('mermaid:failed'));
+        }
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -13,8 +48,35 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            color: #e2e8f0;
+            /* 深色科幻底：深蓝黑 + 多层径向光晕（左上青、右上紫、底部品红微光） */
+            background-color: #070b16;
+            background-image:
+                radial-gradient(900px 480px at 0% 0%,   rgba(45, 212, 191, 0.16), transparent 60%),
+                radial-gradient(1000px 520px at 100% 0%, rgba(124, 58, 237, 0.14), transparent 60%),
+                radial-gradient(1200px 360px at 50% 100%, rgba(236, 72, 153, 0.08), transparent 55%),
+                /* 微弱网格扫描线，制造工业 HUD 感 */
+                linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px);
+            background-size:
+                auto, auto, auto,
+                40px 40px,
+                40px 40px;
+            background-attachment: fixed;
+        }
+        /* 顶部贯穿的荧光横线，作为整页"扫描线" */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(45, 212, 191, 0.7) 20%, rgba(124, 58, 237, 0.7) 50%, rgba(236, 72, 153, 0.7) 80%, transparent 100%);
+            box-shadow: 0 0 18px rgba(124, 58, 237, 0.6);
+            pointer-events: none;
+            z-index: 999;
         }
         
         .container {
@@ -26,97 +88,289 @@
             flex-direction: column;
         }
         
-        header {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 24px;
+        /* ============ HERO 区：标题 + 能力卡合并卡片 ============ */
+        .hero {
+            position: relative;
+            background:
+                radial-gradient(1200px 200px at 0% 0%, rgba(102, 126, 234, 0.20), transparent 60%),
+                radial-gradient(900px 240px at 100% 0%, rgba(240, 147, 251, 0.15), transparent 55%),
+                rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 18px;
+            padding: 22px 24px 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35),
+                        0 0 0 1px rgba(102, 126, 234, 0.10) inset;
+            color: #e2e8f0;
+            overflow: hidden;
         }
-        
-        h1 {
-            font-size: 28px;
-            color: #333;
-            margin-bottom: 8px;
+        /* 顶部一道荧光横线，强化科幻边框感 */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, #667eea 20%, #f093fb 50%, #667eea 80%, transparent 100%);
+            opacity: 0.85;
+            box-shadow: 0 0 12px rgba(102, 126, 234, 0.6);
+        }
+        .hero__head {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
-        
-        h1::before {
-            content: "🔬";
-            font-size: 32px;
+        /* SVG 品牌图标 + 发光描边 */
+        .hero__brand-icon {
+            width: 52px;
+            height: 52px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.55));
+            animation: hero-pulse 2.6s ease-in-out infinite;
         }
-        
+        @keyframes hero-pulse {
+            0%, 100% { filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.45)); }
+            50%      { filter: drop-shadow(0 0 16px rgba(240, 147, 251, 0.70)); }
+        }
+        h1 {
+            font-size: 26px;
+            line-height: 1.15;
+            margin-bottom: 4px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #4f46e5 0%, #764ba2 45%, #db2777 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
         .subtitle {
-            color: #666;
+            color: #94a3b8;
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        /* 科幻分割线 */
+        .hero__divider {
+            margin: 18px 0 14px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.35), transparent);
+            position: relative;
+        }
+        .hero__divider::after {
+            content: '◆';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #93c5fd;
+            font-size: 8px;
+            background: #0f172a;
+            padding: 0 8px;
+            text-shadow: 0 0 6px rgba(147, 197, 253, 0.8);
+        }
+        .hero__cap-title {
             font-size: 14px;
-        }
-        
-        .main-content {
-            display: flex;
-            gap: 20px;
-            flex: 1;
-        }
-        
-        .chat-section {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            min-height: 600px;
-        }
-        
-        .capabilities {
-            width: 320px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-        }
-        
-        .capabilities h3 {
-            color: #333;
-            margin-bottom: 16px;
-            font-size: 18px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
+            letter-spacing: 1px;
         }
-        
-        .capability-item {
+        .hero__cap-title::before {
+            content: '';
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            background: linear-gradient(135deg, #667eea, #f093fb);
+            clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+            box-shadow: 0 0 8px rgba(240, 147, 251, 0.7);
+        }
+
+        /* ============ 扩展技能管理（复用 .hero 卡片风格 + 内部紧凑控件） ============ */
+        .skill-section .skill-toolbar {
             display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .skill-section .skill-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
             cursor: pointer;
             transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.30);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .skill-section .skill-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(102, 126, 234, 0.40);
+        }
+        .skill-section .skill-btn--install {
+            background: linear-gradient(135deg, #48bb78 0%, #2f855a 100%);
+            box-shadow: 0 2px 8px rgba(72, 187, 120, 0.30);
+        }
+        .skill-section .skill-btn--install:hover {
+            box-shadow: 0 6px 14px rgba(72, 187, 120, 0.45);
+        }
+        .skill-section .skill-select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.25);
+            background: rgba(2, 6, 23, 0.55);
+            font-size: 13px;
+            color: #e2e8f0;
+            min-width: 220px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .skill-section .skill-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+        }
+        .skill-section .skill-installed {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        .skill-section .skill-installed p {
+            color: #94a3b8;
+        }
+        .skill-section .skill-status {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid rgba(102, 126, 234, 0.15);
         }
         
+        .main-content {
+            display: block;
+            flex: 1;
+            width: 100%;
+        }
+        
+        .chat-section {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.55);          /* 深玻璃 */
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35),
+                        0 0 0 1px rgba(102, 126, 234, 0.10) inset;
+            display: flex;
+            flex-direction: column;
+            min-height: 600px;
+            color: #e2e8f0;
+            position: relative;
+            overflow: hidden;
+        }
+        /* 对话框顶部荧光线，与 hero 卡呼应 */
+        .chat-section::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.6), rgba(124, 58, 237, 0.6), transparent);
+            opacity: 0.7;
+        }
+        
+        /* 能力卡片栅格（嵌入在 .hero 内部，不再单独白卡） */
+        .capabilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .capability-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
+            border: 1px solid rgba(102, 126, 234, 0.22);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        /* hover 时左边滑出霓虹光条 */
+        .capability-item::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #667eea, #f093fb);
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 0.25s;
+        }
         .capability-item:hover {
-            background: #e9ecef;
-            transform: translateX(4px);
+            transform: translateY(-3px);
+            border-color: rgba(102, 126, 234, 0.55);
+            background: linear-gradient(135deg, rgba(51, 65, 85, 0.8), rgba(30, 41, 59, 0.9));
+            box-shadow: 0 10px 24px rgba(102, 126, 234, 0.25),
+                        0 0 0 1px rgba(102, 126, 234, 0.30) inset;
         }
-        
+        .capability-item:hover::before {
+            transform: scaleY(1);
+        }
+        /* 渐变方块图标：把 emoji 包在科幻的发光容器里 */
         .capability-icon {
-            font-size: 24px;
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            box-shadow: 0 4px 10px rgba(102, 126, 234, 0.35),
+                        inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+            position: relative;
         }
-        
+        .capability-icon::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #667eea, #f093fb);
+            z-index: -1;
+            opacity: 0;
+            filter: blur(8px);
+            transition: opacity 0.25s;
+        }
+        .capability-item:hover .capability-icon::after {
+            opacity: 0.7;
+        }
+        .capability-text { min-width: 0; }
         .capability-text h4 {
-            color: #333;
-            font-size: 14px;
-            margin-bottom: 4px;
+            color: #e2e8f0;
+            font-size: 13px;
+            margin-bottom: 3px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.2px;
         }
-        
         .capability-text p {
-            color: #666;
+            color: #94a3b8;
             font-size: 12px;
             line-height: 1.4;
         }
@@ -124,10 +378,23 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
+            min-width: 0;
             padding: 16px;
-            background: #f8f9fa;
+            background: rgba(2, 6, 23, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.08);
             border-radius: 12px;
             margin-bottom: 16px;
+        }
+        /* 滚动条：深色对话框上要细一点、不刺眼 */
+        .chat-messages::-webkit-scrollbar { width: 8px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.25);
+            border-radius: 4px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.45);
         }
         
         .message {
@@ -149,28 +416,85 @@
             max-width: 85%;
             padding: 12px 16px;
             border-radius: 16px;
-            line-height: 1.6;
+            font-size: 13px;        /* 与"我能做什么"卡片标题一致 */
+            line-height: 1.5;       /* 更紧凑 */
             word-wrap: break-word;
+        }
+        /* 主对话区里 markdown 元素的"行距收紧"——避免段落间空白过大 */
+        .message-content p,
+        .message-content ul,
+        .message-content ol,
+        .message-content pre,
+        .message-content table,
+        .message-content blockquote {
+            margin: 4px 0;
+        }
+        .message-content li {
+            margin: 2px 0;
+        }
+        .message-content h1,
+        .message-content h2,
+        .message-content h3,
+        .message-content h4 {
+            margin: 8px 0 4px;
+            line-height: 1.3;
+        }
+        .message-content h1 { font-size: 16px; }
+        .message-content h2 { font-size: 15px; }
+        .message-content h3 { font-size: 14px; }
+        .message-content h4 { font-size: 13px; }
+        /* markdown 分割线：细灰线，上下间距小，融入而非阻隔 */
+        .message-content .md-hr {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 8px 0;
+        }
+        /* 卡片紧邻 <br> 时合并视觉间距，防止两段卡片之间累积过多空行 */
+        .message-content br + .code-card,
+        .message-content br + .mermaid-block {
+            margin-top: 0;
+        }
+        .message-content .code-card + br,
+        .message-content .mermaid-block + br {
+            display: none;
         }
         
         .message.user .message-content {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.30);
         }
         
         .message.assistant .message-content {
-            background: white;
-            color: #333;
+            background: rgba(30, 41, 59, 0.78);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.12);
             border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30);
+            /* 助手气泡固定占满，避免不同轮次因内容长度差异出现宽度跳变 */
+            display: block;
+            width: 100%;
+            max-width: 100%;
         }
+        .message.assistant .message-content strong { color: #f8fafc; }
+        .message.assistant .message-content a { color: #93c5fd; }
         
+        /* 图片独占一行放在文字上方，与下方文字保留间距；按气泡方向贴边
+           （user 气泡贴右、assistant 气泡贴左） */
         .message-image {
-            max-width: 300px;
+            display: block;
+            max-width: 280px;
             max-height: 200px;
             border-radius: 8px;
-            margin: 8px 0;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        .message.user .message-image {
+            margin-left: auto;
+        }
+        .message.assistant .message-image {
+            margin-right: auto;
         }
         
         .message-typing {
@@ -182,8 +506,9 @@
         .typing-dot {
             width: 8px;
             height: 8px;
-            background: #999;
+            background: #93c5fd;
             border-radius: 50%;
+            box-shadow: 0 0 8px rgba(147, 197, 253, 0.6);
             animation: bounce 1.4s infinite;
         }
         
@@ -197,9 +522,9 @@
         
         .chat-input-area {
             display: flex;
-            gap: 12px;
-            align-items: flex-end;
-            position: relative;  /* 给 preview-container 提供定位基准 */
+            gap: 10px;
+            align-items: center;          /* 所有元素在一条水平线上对齐 */
+            position: relative;            /* 给 preview-container 提供定位基准 */
         }
         
         .input-wrapper {
@@ -209,33 +534,43 @@
         
         textarea {
             width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e9ecef;
+            padding: 12px 16px;
+            background: rgba(2, 6, 23, 0.5);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.18);
             border-radius: 12px;
-            font-size: 15px;
+            font-size: 14px;
+            line-height: 1.4;
             resize: none;
             outline: none;
-            transition: border-color 0.2s;
-            min-height: 54px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            height: 48px;                  /* 与按钮统一高度，视觉齐平 */
             max-height: 120px;
+            box-sizing: border-box;
             font-family: inherit;
         }
-        
+        textarea::placeholder { color: rgba(148, 163, 184, 0.55); }
         textarea:focus {
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
         }
         
         .btn {
-            padding: 12px 24px;
+            height: 48px;                  /* 与 textarea 同高，整行齐平 */
+            padding: 0 22px;
             border: none;
             border-radius: 10px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
+            display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            line-height: 1;
         }
         
         .btn-primary {
@@ -253,29 +588,44 @@
             cursor: not-allowed;
             transform: none;
         }
+
+        /* 生成中：按钮变成"停止"红色态 */
+        .btn-primary.is-generating {
+            background: #e53e3e;
+        }
+        .btn-primary.is-generating:hover {
+            background: #c53030;
+        }
         
         .btn-secondary {
-            background: #f8f9fa;
-            color: #666;
+            background: rgba(30, 41, 59, 0.7);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.18);
         }
         
         .btn-secondary:hover {
-            background: #e9ecef;
+            background: rgba(51, 65, 85, 0.85);
+            color: #f1f5f9;
         }
         
         .btn-upload {
-            background: #f8f9fa;
-            color: #666;
-            padding: 12px;
+            background: rgba(30, 41, 59, 0.7);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            width: 48px;                   /* 方形相机按钮，与其他按钮同高 */
+            padding: 0;
+            font-size: 20px;
         }
         
         .btn-upload:hover {
-            background: #e9ecef;
+            background: rgba(51, 65, 85, 0.85);
+            color: #f1f5f9;
         }
         
         .btn-upload.has-image {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
+            border-color: rgba(102, 126, 234, 0.45);
         }
         
         /* 图片预览：脱离文档流，浮在输入区上方右侧，
@@ -322,7 +672,9 @@
         }
         
         pre {
-            background: #f4f4f4;
+            background: rgba(2, 6, 23, 0.7);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.12);
             padding: 12px;
             border-radius: 8px;
             overflow-x: auto;
@@ -334,6 +686,14 @@
             font-family: 'Monaco', 'Menlo', monospace;
             font-size: 13px;
         }
+        /* 行内代码：在深色气泡里用浅色 */
+        .message-content :not(pre) > code {
+            background: rgba(2, 6, 23, 0.55);
+            color: #93c5fd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(148, 163, 184, 0.12);
+        }
         
         table {
             border-collapse: collapse;
@@ -342,44 +702,476 @@
         }
         
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid rgba(148, 163, 184, 0.18);
             padding: 8px 12px;
             text-align: left;
+            color: #e2e8f0;
         }
         
         th {
-            background: #f8f9fa;
+            background: rgba(30, 41, 59, 0.7);
+            color: #f1f5f9;
+            font-weight: 600;
+        }
+        td {
+            background: rgba(15, 23, 42, 0.4);
         }
         
         @media (max-width: 900px) {
-            .main-content {
-                flex-direction: column;
+            .capabilities-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
-            .capabilities {
-                width: 100%;
-            }
+        }
+
+        /* ============ 代码文件卡片 ============ */
+        .code-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            margin: 6px 0;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.75) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.22);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .code-card:hover {
+            background: linear-gradient(135deg, rgba(51, 65, 85, 0.7) 0%, rgba(30, 41, 59, 0.85) 100%);
+            border-color: rgba(102, 126, 234, 0.55);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(102, 126, 234, 0.22);
+        }
+        .code-card__icon {
+            font-size: 26px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .code-card__meta {
+            flex: 1;
+            min-width: 0;
+        }
+        .code-card__name {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .code-card__hint {
+            margin-top: 2px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .code-card__badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #667eea;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', monospace;
+            white-space: nowrap;
+        }
+        .code-card__arrow {
+            color: #a0aec0;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        /* ============ 右侧代码预览抽屉 ============ */
+        .code-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(560px, 92vw);
+            height: 100vh;
+            background: #1e1e2e;
+            color: #e2e8f0;
+            box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+            transform: translateX(100%);
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+        }
+        .code-drawer.is-open {
+            transform: translateX(0);
+        }
+        .code-drawer__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            background: #2d2d3d;
+            border-bottom: 1px solid #3a3a4d;
+            flex-shrink: 0;
+        }
+        .code-drawer__title {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .code-drawer__lang {
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #667eea;
+            color: white;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', monospace;
+            white-space: nowrap;
+        }
+        .code-drawer__name {
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .code-drawer__actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .code-drawer__btn {
+            padding: 6px 12px;
+            background: transparent;
+            color: #cbd5e0;
+            border: 1px solid #4a4a5d;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .code-drawer__btn:hover {
+            background: #3a3a4d;
+            color: #fff;
+            border-color: #667eea;
+        }
+        .code-drawer__btn.is-close {
+            font-size: 18px;
+            line-height: 1;
+            padding: 4px 10px;
+        }
+        .code-drawer__body {
+            flex: 1;
+            overflow: auto;
+            margin: 0;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre;
+            tab-size: 4;
+            background: #1e1e2e;
+        }
+        .code-drawer__toast {
+            position: absolute;
+            top: 60px;
+            right: 16px;
+            background: rgba(72, 187, 120, 0.95);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: all 0.2s;
+            pointer-events: none;
+        }
+        .code-drawer__toast.is-show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ============ Mermaid 流程图块（缩略图模式） ============ */
+        .mermaid-block {
+            position: relative;
+            margin: 12px 0;
+            padding: 14px;
+            background: rgba(2, 6, 23, 0.55);
+            border: 1px solid rgba(102, 126, 234, 0.22);
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.30);
+            overflow: hidden;
+            text-align: center;
+            cursor: zoom-in;
+            transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+        }
+        .mermaid-block:hover {
+            border-color: rgba(102, 126, 234, 0.55);
+            box-shadow: 0 8px 22px rgba(102, 126, 234, 0.22);
+            transform: translateY(-1px);
+        }
+        /* 缩略图固定高度，过大的图等比缩放装进卡片 */
+        .mermaid-block__svg-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 100%;
+            max-height: 220px;
+            overflow: hidden;
+        }
+        .mermaid-block__svg-wrap svg {
+            max-width: 100%;
+            max-height: 220px;
+            width: auto;
+            height: auto;
+            display: block;
+        }
+        /* 右下角"点击放大"提示，hover 时浮现 */
+        .mermaid-block__hint {
+            position: absolute;
+            bottom: 8px;
+            right: 10px;
+            font-size: 11px;
+            color: #94a3b8;
+            background: rgba(2, 6, 23, 0.75);
+            border: 1px solid rgba(102, 126, 234, 0.22);
+            padding: 3px 8px;
+            border-radius: 999px;
+            letter-spacing: 0.3px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.18s;
+            z-index: 2;
+        }
+        .mermaid-block:hover .mermaid-block__hint { opacity: 1; }
+
+        .mermaid-block__toolbar {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.18s;
+            z-index: 3;
+        }
+        .mermaid-block:hover .mermaid-block__toolbar {
+            opacity: 1;
+        }
+        .mermaid-block__btn {
+            padding: 4px 10px;
+            background: rgba(45, 55, 72, 0.85);
+            color: white;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+        .mermaid-block__btn:hover {
+            background: rgba(45, 55, 72, 1);
+        }
+        .mermaid-block__loading {
+            color: #a0aec0;
+            font-size: 13px;
+            padding: 24px;
+        }
+        .mermaid-block__error {
+            color: #fca5a5;
+            background: rgba(127, 29, 29, 0.25);
+            border: 1px dashed rgba(252, 165, 165, 0.5);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            text-align: left;
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Menlo', monospace;
+            cursor: default;
+        }
+
+        /* ============ Mermaid 大图 Lightbox ============ */
+        .mermaid-lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.88);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 60px 40px 40px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .mermaid-lightbox.is-open {
+            display: flex;
+            opacity: 1;
+        }
+        .mermaid-lightbox__stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+        .mermaid-lightbox__stage svg {
+            max-width: 95%;
+            max-height: 95%;
+            width: auto;
+            height: auto;
+            filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.4));
+        }
+        .mermaid-lightbox__toolbar {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            gap: 8px;
+            z-index: 2;
+        }
+        .mermaid-lightbox__btn {
+            padding: 8px 14px;
+            background: rgba(30, 41, 59, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+        .mermaid-lightbox__btn:hover {
+            background: rgba(51, 65, 85, 0.95);
+            border-color: rgba(102, 126, 234, 0.55);
+        }
+        .mermaid-lightbox__close {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.85);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            z-index: 2;
+        }
+        .mermaid-lightbox__close:hover {
+            background: rgba(239, 68, 68, 0.85);
+            border-color: rgba(239, 68, 68, 0.85);
+        }
+        .mermaid-lightbox__caption {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #94a3b8;
+            font-size: 12px;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>工业视觉检测AI专家</h1>
-            <p class="subtitle">智能评估需求 · 精准硬件选型 · 高效代码生成</p>
-        </header>
-        
+        <section class="hero">
+            <div class="hero__head">
+                <!-- 科幻品牌图标：六边形外环 + 内菱形 + 中心节点 + 四向扫描线 -->
+                <svg class="hero__brand-icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="brandRing" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#667eea"/>
+                            <stop offset="100%" stop-color="#f093fb"/>
+                        </linearGradient>
+                        <linearGradient id="brandInner" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#667eea"/>
+                            <stop offset="100%" stop-color="#764ba2"/>
+                        </linearGradient>
+                        <radialGradient id="brandCore">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="60%" stop-color="#a5b4fc"/>
+                            <stop offset="100%" stop-color="#667eea"/>
+                        </radialGradient>
+                    </defs>
+                    <path d="M32 4 L56 18 L56 46 L32 60 L8 46 L8 18 Z"
+                          stroke="url(#brandRing)" stroke-width="2"
+                          fill="rgba(102,126,234,0.06)"/>
+                    <path d="M32 14 L48 32 L32 50 L16 32 Z"
+                          stroke="url(#brandInner)" stroke-width="1.5" fill="none"/>
+                    <circle cx="32" cy="32" r="5.5" fill="url(#brandCore)"/>
+                    <line x1="32" y1="22" x2="32" y2="14" stroke="url(#brandInner)" stroke-width="1"/>
+                    <line x1="32" y1="42" x2="32" y2="50" stroke="url(#brandInner)" stroke-width="1"/>
+                    <line x1="22" y1="32" x2="14" y2="32" stroke="url(#brandInner)" stroke-width="1"/>
+                    <line x1="42" y1="32" x2="50" y2="32" stroke="url(#brandInner)" stroke-width="1"/>
+                </svg>
+                <div class="hero__titles">
+                    <h1>工业视觉检测AI专家</h1>
+                    <p class="subtitle">智能评估需求 · 精准硬件选型 · 高效代码生成</p>
+                </div>
+            </div>
+
+            <div class="hero__divider"></div>
+
+            <h3 class="hero__cap-title">我能做什么</h3>
+            <div class="capabilities-grid">
+                <div class="capability-item" onclick="fillPrompt('帮我分析检测需求。产品尺寸：XXmm×XXmm，最小缺陷：XXmm，TT：X秒，日产能：XXXX件')">
+                    <span class="capability-icon">📊</span>
+                    <div class="capability-text">
+                        <h4>需求评估</h4>
+                        <p>评估检测方案与像素当量</p>
+                    </div>
+                </div>
+
+                <div class="capability-item" onclick="fillPrompt('帮我推荐相机和光源。产品：XX，尺寸：XXmm×XXmm，检测目标：XX')">
+                    <span class="capability-icon">📷</span>
+                    <div class="capability-text">
+                        <h4>硬件选型</h4>
+                        <p>相机 / 光源 / 工控机</p>
+                    </div>
+                </div>
+
+                <div class="capability-item" onclick="fillPrompt('使用 InteVega SDK 生成 XX 检测的 C# 代码模板（包含 GPU 内存申请、推理句柄创建、大图分块推理、结果解析、资源释放）')">
+                    <span class="capability-icon">💻</span>
+                    <div class="capability-text">
+                        <h4>代码生成</h4>
+                        <p>InteVega / Vap SDK 模板</p>
+                    </div>
+                </div>
+
+                <div class="capability-item" onclick="fillPrompt('帮我设计一个XX检测方案，产品：XX，尺寸：XXmm×XXmm')">
+                    <span class="capability-icon">📋</span>
+                    <div class="capability-text">
+                        <h4>方案设计</h4>
+                        <p>完整检测技术方案文档</p>
+                    </div>
+                </div>
+
+                <div class="capability-item" onclick="fillPrompt('气泡检测用什么光源比较好？')">
+                    <span class="capability-icon">💡</span>
+                    <div class="capability-text">
+                        <h4>技术咨询</h4>
+                        <p>视觉检测疑难解答</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <div class="main-content">
             <section class="chat-section">
                 <div class="chat-messages" id="chatMessages">
                     <div class="message assistant">
                         <div class="message-content">
-                            👋 你好！我是<strong>工业视觉检测AI专家</strong>。<br><br>
-                            我可以帮助你：<br>
-                            • 📋 评估检测需求（产品尺寸、精度、TT节拍）<br>
-                            • 🔧 推荐硬件选型（相机、光源、工控机）<br>
-                            • 💻 生成检测代码（Vap SDK / InteVega SDK）<br>
-                            • 📝 设计完整技术方案<br><br>
-                            请描述你的检测需求，或者上传产品图片！
+                            👋 你好！我是<strong>工业视觉检测AI专家</strong>，请描述你的检测需求或上传产品图片（也可点击上方卡片快速开始）。
                         </div>
                     </div>
                 </div>
@@ -408,58 +1200,40 @@
                     <button class="btn btn-secondary" onclick="clearChat()">清空</button>
                 </div>
             </section>
-            
-            <aside class="capabilities">
-                <h3>💡 我能做什么</h3>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我分析检测需求。产品尺寸：XXmm×XXmm，最小缺陷：XXmm，TT：X秒，日产能：XXXX件')">
-                    <span class="capability-icon">📊</span>
-                    <div class="capability-text">
-                        <h4>需求评估</h4>
-                        <p>根据产品参数评估检测方案，计算像素当量和产能</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我推荐相机和光源。产品：XX，尺寸：XXmm×XXmm，检测目标：XX')">
-                    <span class="capability-icon">📷</span>
-                    <div class="capability-text">
-                        <h4>硬件选型</h4>
-                        <p>推荐线扫/面阵相机、光源类型、工控机配置</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('使用Vap SDK生成XX检测代码')">
-                    <span class="capability-icon">💻</span>
-                    <div class="capability-text">
-                        <h4>代码生成</h4>
-                        <p>生成Vap SDK/InteVega SDK检测代码模板</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('帮我设计一个XX检测方案，产品：XX，尺寸：XXmm×XXmm')">
-                    <span class="capability-icon">📋</span>
-                    <div class="capability-text">
-                        <h4>方案设计</h4>
-                        <p>输出完整的检测技术方案文档</p>
-                    </div>
-                </div>
-                
-                <div class="capability-item" onclick="fillPrompt('气泡检测用什么光源比较好？')">
-                    <span class="capability-icon">💡</span>
-                    <div class="capability-text">
-                        <h4>技术咨询</h4>
-                        <p>解答视觉检测相关的技术问题</p>
-                    </div>
-                </div>
-            </aside>
         </div>
+
+        <!-- 扩展技能管理：与上方 hero / chat-section 同宽（1200px container 内）、同间距 -->
+        <section class="hero skill-section" style="margin-top: 20px;">
+            <h3 class="hero__cap-title">扩展技能管理</h3>
+
+            <div class="skill-toolbar">
+                <button class="skill-btn" onclick="loadSkills()">🔄 刷新技能列表</button>
+                <select id="skillSelect" class="skill-select">
+                    <option value="">-- 选择要安装的技能 --</option>
+                    <option value="weather">🌤️ 天气预报</option>
+                    <option value="translation">🌐 翻译助手</option>
+                    <option value="web_search">🔍 联网搜索</option>
+                    <option value="stock">📈 股票查询</option>
+                    <option value="calendar">📅 日程管理</option>
+                </select>
+                <button class="skill-btn skill-btn--install" onclick="installSkill()">➕ 安装</button>
+            </div>
+
+            <div id="installedSkills" class="skill-installed">
+                <p>点击"刷新技能列表"查看已安装的技能</p>
+            </div>
+
+            <div id="skillStatus" class="skill-status" style="display: none;"></div>
+        </section>
     </div>
-    
+
     <script>
         let chatHistory = [];
         let selectedImage = null;
         let isTyping = false;
-        
+        let isGenerating = false;        // 当前是否正在向后端拉取流
+        let currentController = null;    // AbortController，用于中途取消
+
         const uploadBtn = document.getElementById('uploadBtn');
         const imageInput = document.getElementById('imageInput');
         const messageInput = document.getElementById('messageInput');
@@ -467,6 +1241,23 @@
         const chatMessages = document.getElementById('chatMessages');
         const previewContainer = document.getElementById('previewContainer');
         const previewImage = document.getElementById('previewImage');
+
+        function setSendingState(generating) {
+            isGenerating = generating;
+            const label = sendBtn.querySelector('span');
+            if (label) label.textContent = generating ? '停止' : '发送';
+            sendBtn.classList.toggle('is-generating', generating);
+        }
+
+        function abortCurrentRequest() {
+            if (currentController) {
+                try { currentController.abort(); } catch (_) {}
+                currentController = null;
+            }
+        }
+
+        // 用户关页/导航离开时 abort，避免后端继续烧 token
+        window.addEventListener('beforeunload', abortCurrentRequest);
         
         // 上传按钮点击
         uploadBtn.addEventListener('click', () => {
@@ -520,26 +1311,32 @@
         // 清空聊天
         function clearChat() {
             chatHistory = [];
+            // 同时回收已注册的代码 artifact / 流程图，避免内存累积
+            codeArtifacts.clear();
+            _codeArtifactSeq = 0;
+            mermaidBlocks.clear();
+            _mermaidSeq = 0;
+            closeCodePanel();
             chatMessages.innerHTML = `
                 <div class="message assistant">
                     <div class="message-content">
-                        👋 聊天已清空！请描述你的检测需求。
+                        👋 聊天已清空，请描述你的检测需求或上传产品图片。
                     </div>
                 </div>
             `;
         }
         
-        // 添加消息到界面
+        // 添加消息到界面：图片在上、文字在下
         function addMessage(role, content, image = null) {
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${role}`;
-            
-            let msgContent = `<div class="message-content">${content}`;
+
+            let msgContent = `<div class="message-content">`;
             if (image) {
                 msgContent += `<img src="${image}" class="message-image">`;
             }
-            msgContent += '</div>';
-            
+            msgContent += `${content || ''}</div>`;
+
             msgDiv.innerHTML = msgContent;
             chatMessages.appendChild(msgDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -559,12 +1356,12 @@
                                 <div class="typing-dot"></div>
                                 <div class="typing-dot"></div>
                             </div>
-                            <span id="thinkingLabel" style="font-size: 13px; color: #4a5568; font-weight: 500; display: none;">深度思考中</span>
-                            <span id="thinkingTime" style="font-size: 12px; color: #a0aec0; font-variant-numeric: tabular-nums; display: none;"></span>
+                            <span id="thinkingLabel" style="font-size: 13px; color: #cbd5e1; font-weight: 500; display: none;">深度思考中</span>
+                            <span id="thinkingTime" style="font-size: 12px; color: #94a3b8; font-variant-numeric: tabular-nums; display: none;"></span>
                         </div>
-                        <div id="thinkingText" style="font-size: 13px; color: #718096; line-height: 1.6; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; padding-right: 6px;"></div>
+                        <div id="thinkingText" style="font-size: 13px; color: #94a3b8; line-height: 1.6; max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; padding-right: 6px; border-left: 2px solid rgba(102, 126, 234, 0.35); padding-left: 10px;"></div>
                     </div>
-                    <div id="answerStream" style="display: none; margin-top: 10px; color: #2d3748; font-size: 14px; line-height: 1.7; word-break: break-word;"></div>
+                    <div id="answerStream" style="display: none; margin-top: 10px; color: #e2e8f0; font-size: 14px; line-height: 1.7; word-break: break-word;"></div>
                 </div>
             `;
             chatMessages.appendChild(typingDiv);
@@ -664,28 +1461,426 @@
             return content;
         }
         
-        // 格式化响应内容
-        function formatContent(content) {
-            if (!content) return "";
-            // 转义HTML
-            content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            
-            // 转换代码块
-            content = content.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
-                return `<pre><code>${code.trim()}</code></pre>`;
+        // ============ 代码"文件化"机制 ============
+        // 语言 → { 扩展名, 显示标签, 卡片图标 }
+        const LANG_MAP = {
+            cs: { ext: 'cs', label: 'C#', icon: '🟦' },
+            csharp: { ext: 'cs', label: 'C#', icon: '🟦' },
+            'c#': { ext: 'cs', label: 'C#', icon: '🟦' },
+            python: { ext: 'py', label: 'Python', icon: '🐍' },
+            py: { ext: 'py', label: 'Python', icon: '🐍' },
+            cpp: { ext: 'cpp', label: 'C++', icon: '🔷' },
+            'c++': { ext: 'cpp', label: 'C++', icon: '🔷' },
+            c: { ext: 'c', label: 'C', icon: '🔵' },
+            java: { ext: 'java', label: 'Java', icon: '☕' },
+            js: { ext: 'js', label: 'JavaScript', icon: '🟨' },
+            javascript: { ext: 'js', label: 'JavaScript', icon: '🟨' },
+            ts: { ext: 'ts', label: 'TypeScript', icon: '🔷' },
+            typescript: { ext: 'ts', label: 'TypeScript', icon: '🔷' },
+            json: { ext: 'json', label: 'JSON', icon: '📋' },
+            xml: { ext: 'xml', label: 'XML', icon: '📋' },
+            yaml: { ext: 'yaml', label: 'YAML', icon: '📋' },
+            yml: { ext: 'yml', label: 'YAML', icon: '📋' },
+            html: { ext: 'html', label: 'HTML', icon: '🌐' },
+            css: { ext: 'css', label: 'CSS', icon: '🎨' },
+            sql: { ext: 'sql', label: 'SQL', icon: '🗄️' },
+            bash: { ext: 'sh', label: 'Bash', icon: '💻' },
+            shell: { ext: 'sh', label: 'Shell', icon: '💻' },
+            sh: { ext: 'sh', label: 'Shell', icon: '💻' },
+            md: { ext: 'md', label: 'Markdown', icon: '📝' },
+            markdown: { ext: 'md', label: 'Markdown', icon: '📝' },
+        };
+
+        let _codeArtifactSeq = 0;
+        const codeArtifacts = new Map();  // id → { code, language, label, ext, filename }
+
+        // Mermaid 流程图块：与代码块分开管理，最终消息渲染时挂载真实 SVG
+        let _mermaidSeq = 0;
+        const mermaidBlocks = new Map();  // id → mermaid 源码
+
+        function _toSnakeCase(name) {
+            return name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+        }
+
+        // 根据语言 + 代码内容启发式推断文件名
+        function inferFileName(language, code, seq) {
+            const lang = (language || '').toLowerCase();
+            const meta = LANG_MAP[lang];
+            const ext = meta ? meta.ext : (lang || 'txt');
+
+            if (lang === 'cs' || lang === 'csharp' || lang === 'c#') {
+                const cls = code.match(/\bclass\s+([A-Z][A-Za-z0-9_]*)/);
+                if (cls) return `${cls[1]}.cs`;
+                const ns = code.match(/\bnamespace\s+([A-Za-z_][A-Za-z0-9_.]*)/);
+                if (ns) return `${ns[1].split('.').pop()}.cs`;
+                return `Snippet${seq}.cs`;
+            }
+            if (lang === 'py' || lang === 'python') {
+                const cls = code.match(/\bclass\s+([A-Za-z_][A-Za-z0-9_]*)/);
+                if (cls) return `${_toSnakeCase(cls[1])}.py`;
+                if (/\bdef\s+main\s*\(/.test(code) || /if\s+__name__\s*==/.test(code)) return `main.py`;
+                const fn = code.match(/\bdef\s+([a-z_][a-z0-9_]*)\s*\(/);
+                if (fn) return `${fn[1]}.py`;
+                return `snippet_${seq}.py`;
+            }
+            if (lang === 'json') return `config_${seq}.json`;
+            if (lang === 'xml') return `config_${seq}.xml`;
+            return `snippet_${seq}.${ext}`;
+        }
+
+        function registerCodeArtifact(language, code) {
+            const seq = ++_codeArtifactSeq;
+            const lang = (language || '').toLowerCase();
+            const meta = LANG_MAP[lang] || { ext: lang || 'txt', label: (lang || 'TEXT').toUpperCase(), icon: '📄' };
+            const filename = inferFileName(lang, code, seq);
+            const id = `code-${seq}`;
+            codeArtifacts.set(id, {
+                id, code, language: lang,
+                label: meta.label, ext: meta.ext, icon: meta.icon, filename,
             });
-            
-            // 转换行内代码
+            return id;
+        }
+
+        function buildCodeCardHTML(id) {
+            const a = codeArtifacts.get(id);
+            if (!a) return '';
+            const lines = a.code.split('\n').length;
+            return `<div class="code-card" onclick="openCodePanel('${id}')">`
+                + `<span class="code-card__icon">${a.icon}</span>`
+                + `<div class="code-card__meta">`
+                +   `<div class="code-card__name">${escapeHtml(a.filename)}</div>`
+                +   `<div class="code-card__hint">${escapeHtml(a.label)} · ${lines} 行 · 点击预览</div>`
+                + `</div>`
+                + `<span class="code-card__badge">${escapeHtml(a.ext.toUpperCase())}</span>`
+                + `<span class="code-card__arrow">›</span>`
+                + `</div>`;
+        }
+
+        // ============ 抽屉控制 ============
+        let _drawerActiveId = null;
+        let _drawerToastTimer = 0;
+
+        function openCodePanel(id) {
+            const a = codeArtifacts.get(id);
+            if (!a) return;
+            _drawerActiveId = id;
+            document.getElementById('codeDrawerLang').textContent = a.label;
+            document.getElementById('codeDrawerName').textContent = a.filename;
+            const body = document.getElementById('codeDrawerBody');
+            body.textContent = a.code;     // 用 textContent 避免再转义
+            body.scrollTop = 0;
+            const drawer = document.getElementById('codeDrawer');
+            drawer.classList.add('is-open');
+            drawer.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeCodePanel() {
+            const drawer = document.getElementById('codeDrawer');
+            drawer.classList.remove('is-open');
+            drawer.setAttribute('aria-hidden', 'true');
+            _drawerActiveId = null;
+        }
+
+        function _showDrawerToast(msg) {
+            const t = document.getElementById('codeDrawerToast');
+            if (!t) return;
+            t.textContent = msg;
+            t.classList.add('is-show');
+            clearTimeout(_drawerToastTimer);
+            _drawerToastTimer = setTimeout(() => t.classList.remove('is-show'), 1600);
+        }
+
+        async function copyDrawerCode() {
+            if (!_drawerActiveId) return;
+            const a = codeArtifacts.get(_drawerActiveId);
+            if (!a) return;
+            try {
+                await navigator.clipboard.writeText(a.code);
+                _showDrawerToast('已复制到剪贴板');
+            } catch (e) {
+                // fallback：选区方式
+                const ta = document.createElement('textarea');
+                ta.value = a.code;
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); _showDrawerToast('已复制'); }
+                catch (_) { _showDrawerToast('复制失败'); }
+                document.body.removeChild(ta);
+            }
+        }
+
+        function downloadDrawerCode() {
+            if (!_drawerActiveId) return;
+            const a = codeArtifacts.get(_drawerActiveId);
+            if (!a) return;
+            const blob = new Blob([a.code], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = a.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            _showDrawerToast('已开始下载');
+        }
+
+        // ESC 关闭抽屉 / Mermaid 大图（lightbox 优先，避免重叠层级误关）
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Escape') return;
+            const lb = document.getElementById('mermaidLightbox');
+            if (lb && lb.classList.contains('is-open')) {
+                closeMermaidLightbox();
+                return;
+            }
+            const drawer = document.getElementById('codeDrawer');
+            if (drawer && drawer.classList.contains('is-open')) closeCodePanel();
+        });
+
+        // ============ Mermaid 流程图渲染 ============
+        function registerMermaidBlock(code) {
+            const id = `mmd-${++_mermaidSeq}`;
+            mermaidBlocks.set(id, code);
+            return id;
+        }
+
+        function buildMermaidBlockHTML(id) {
+            // 注意：缩略卡片本身 click 放大；工具栏按钮带 stopPropagation 避免冒泡
+            return `<div class="mermaid-block" data-mmd-id="${id}" onclick="openMermaidLightbox('${id}')" title="点击放大查看">`
+                + `<div class="mermaid-block__toolbar" onclick="event.stopPropagation()">`
+                +   `<button class="mermaid-block__btn" onclick="event.stopPropagation(); openMermaidLightbox('${id}')">🔍 放大</button>`
+                +   `<button class="mermaid-block__btn" onclick="event.stopPropagation(); downloadMermaidJPG('${id}')">⬇ 下载图片</button>`
+                +   `<button class="mermaid-block__btn" onclick="event.stopPropagation(); copyMermaidCode('${id}')">复制源码</button>`
+                + `</div>`
+                + `<div class="mermaid-block__loading">流程图渲染中…</div>`
+                + `<div class="mermaid-block__hint">🔍 点击放大</div>`
+                + `</div>`;
+        }
+
+        function _waitMermaid() {
+            return new Promise((resolve, reject) => {
+                if (window.__mermaidFailed) return reject(new Error('mermaid 库加载失败'));
+                if (window.mermaid) return resolve(window.mermaid);
+                document.addEventListener('mermaid:ready', () => resolve(window.mermaid), { once: true });
+                document.addEventListener('mermaid:failed', () => reject(new Error('mermaid 库加载失败')), { once: true });
+            });
+        }
+
+        async function renderMermaidIn(rootEl) {
+            if (!rootEl) return;
+            const blocks = rootEl.querySelectorAll('.mermaid-block[data-mmd-id]');
+            if (blocks.length === 0) return;
+            let mermaid;
+            try {
+                mermaid = await _waitMermaid();
+            } catch (e) {
+                blocks.forEach(el => {
+                    const loading = el.querySelector('.mermaid-block__loading');
+                    if (loading) loading.remove();
+                    const id = el.dataset.mmdId;
+                    const code = mermaidBlocks.get(id) || '';
+                    const fallback = document.createElement('pre');
+                    fallback.className = 'mermaid-block__error';
+                    fallback.textContent = `⚠ ${e.message}\n\n源码：\n${code}`;
+                    el.appendChild(fallback);
+                });
+                return;
+            }
+            for (const el of blocks) {
+                if (el.dataset.mmdRendered === '1') continue;
+                const id = el.dataset.mmdId;
+                const code = mermaidBlocks.get(id);
+                if (!code) continue;
+                try {
+                    const renderId = `mmd-svg-${id}-${Date.now()}`;
+                    const { svg } = await mermaid.render(renderId, code);
+                    const loading = el.querySelector('.mermaid-block__loading');
+                    if (loading) loading.remove();
+                    const wrap = document.createElement('div');
+                    wrap.className = 'mermaid-block__svg-wrap';
+                    wrap.innerHTML = svg;
+                    el.appendChild(wrap);
+                    el.dataset.mmdRendered = '1';
+                } catch (e) {
+                    const loading = el.querySelector('.mermaid-block__loading');
+                    if (loading) loading.remove();
+                    const err = document.createElement('pre');
+                    err.className = 'mermaid-block__error';
+                    err.textContent = `渲染失败：${e?.message || e}\n\n源码：\n${code}`;
+                    el.appendChild(err);
+                    el.dataset.mmdRendered = '1';
+                }
+            }
+        }
+
+        function _findMermaidSVG(id) {
+            return document.querySelector(`.mermaid-block[data-mmd-id="${id}"] svg`) || null;
+        }
+
+        // 把渲染好的流程图 SVG 转成 JPG 文件下载
+        // 流程：SVG → Image → Canvas（白底 2x 高清）→ Blob('image/jpeg') → <a download>
+        function downloadMermaidJPG(id) {
+            const svg = _findMermaidSVG(id);
+            if (!svg) return;
+            // 优先用 viewBox / width-attr，避免缩略图模式被 CSS 限高后导出小图
+            let baseW = 0, baseH = 0;
+            const vb = svg.viewBox && svg.viewBox.baseVal;
+            if (vb && vb.width && vb.height) {
+                baseW = Math.ceil(vb.width);
+                baseH = Math.ceil(vb.height);
+            } else {
+                const wAttr = parseFloat(svg.getAttribute('width')) || 0;
+                const hAttr = parseFloat(svg.getAttribute('height')) || 0;
+                if (wAttr && hAttr) { baseW = Math.ceil(wAttr); baseH = Math.ceil(hAttr); }
+            }
+            if (!baseW || !baseH) {
+                const bbox = svg.getBoundingClientRect();
+                baseW = Math.max(1, Math.ceil(bbox.width));
+                baseH = Math.max(1, Math.ceil(bbox.height));
+            }
+            const clone = svg.cloneNode(true);
+            clone.setAttribute('width', baseW);
+            clone.setAttribute('height', baseH);
+            const xml = new XMLSerializer().serializeToString(clone);
+
+            const svgBlob = new Blob(
+                ['<?xml version="1.0" encoding="UTF-8"?>\n' + xml],
+                { type: 'image/svg+xml;charset=utf-8' }
+            );
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            img.onload = () => {
+                const scale = 2;  // 2x 高清，PPT 友好
+                const w = baseW * scale;
+                const h = baseH * scale;
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                // JPG 不支持透明，必须填白底
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                URL.revokeObjectURL(url);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        alert('图片导出失败');
+                        return;
+                    }
+                    const jpgUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = jpgUrl;
+                    link.download = `flowchart-${id}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(jpgUrl);
+                }, 'image/jpeg', 0.92);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                alert('图片导出失败：浏览器不支持 SVG → JPG 转换');
+            };
+            img.src = url;
+        }
+
+        async function copyMermaidCode(id) {
+            const code = mermaidBlocks.get(id);
+            if (!code) return;
+            try {
+                await navigator.clipboard.writeText(code);
+            } catch (e) {
+                // 静默失败：浏览器策略限制时跳过
+            }
+        }
+
+        // ============ Mermaid 大图查看器 ============
+        // 把对话框里的小卡片 SVG clone 到全屏 lightbox，避免来回渲染
+        function openMermaidLightbox(id) {
+            const svg = _findMermaidSVG(id);
+            const lb = document.getElementById('mermaidLightbox');
+            const stage = document.getElementById('mermaidLightboxStage');
+            if (!lb || !stage) return;
+            stage.innerHTML = '';
+            if (svg) {
+                const clone = svg.cloneNode(true);
+                // lightbox 里清掉 max-width:220px 这种缩略尺寸约束，让 CSS 接管
+                clone.removeAttribute('width');
+                clone.removeAttribute('height');
+                clone.style.maxWidth = '95vw';
+                clone.style.maxHeight = '88vh';
+                clone.style.width = 'auto';
+                clone.style.height = 'auto';
+                stage.appendChild(clone);
+            } else {
+                // 还没渲染好（极少见）：退回提示
+                const tip = document.createElement('div');
+                tip.style.color = '#94a3b8';
+                tip.style.fontSize = '14px';
+                tip.textContent = '流程图还在渲染中，请稍后再试…';
+                stage.appendChild(tip);
+            }
+            window.__mmdLbId = id;
+            lb.classList.add('is-open');
+            lb.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMermaidLightbox() {
+            const lb = document.getElementById('mermaidLightbox');
+            if (!lb) return;
+            lb.classList.remove('is-open');
+            lb.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            window.__mmdLbId = null;
+            const stage = document.getElementById('mermaidLightboxStage');
+            if (stage) stage.innerHTML = '';
+        }
+
+        // 流被中断时模型很可能没来得及输出闭合 ```，
+        // 这里补一个虚拟闭合，让 formatContent 也能识别成代码块（而不是当成普通文本铺一大段）
+        function _autoCloseCodeFence(s) {
+            const ticks = s.match(/```/g);
+            if (ticks && ticks.length % 2 === 1) {
+                return s + '\n```';
+            }
+            return s;
+        }
+
+        // 格式化响应内容
+        // options.asCard：true → 代码块替换为"文件卡片"（仅最终消息）；false → 保留 <pre><code> 内联（流式过程中）
+        function formatContent(content, options) {
+            if (!content) return "";
+            const asCard = options && options.asCard;
+            // 最终渲染时把未闭合的 ``` 补齐，避免被截断的回答看不到代码卡片
+            if (asCard) content = _autoCloseCodeFence(content);
+
+            // 1) 先把代码块"抽出"。连带吃掉前后的换行，避免后面 \n→<br> 时
+            //    在卡片上下累积一堆 <br><br><br>，造成视觉上"两个卡片间一大段空白"
+            const placeholders = [];
+            content = content.replace(/\n*```(\w*)\n?([\s\S]*?)```\n*/g, (m, lang, code) => {
+                const trimmed = code.replace(/[\r\n]+$/, '');
+                const idx = placeholders.length;
+                const lowerLang = (lang || '').toLowerCase();
+                const kind = (lowerLang === 'mermaid') ? 'mermaid' : 'code';
+                placeholders.push({ kind, lang: lowerLang, code: trimmed });
+                // 占位符两端各留一个 \n，最终只产出一个 <br>，避免上下空白塌缩到 0
+                return `\n\u0000CODE_BLOCK_${idx}\u0000\n`;
+            });
+
+            // 2) 转义其余 HTML
+            content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // 3) 行内代码
             content = content.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // 转换表格
+
+            // 4) 表格
             const tableRegex = /\|(.+)\|[\r\n]+\|[-| :]+\|[\r\n]+((?:\|.+\|[\r\n]*)+)/g;
             content = content.replace(tableRegex, (match, header, body) => {
                 const headers = header.split('|').filter(h => h.trim());
-                const rows = body.trim().split('\n').map(row => 
+                const rows = body.trim().split('\n').map(row =>
                     row.split('|').filter(c => c.trim())
                 );
-                
                 let table = '<table><thead><tr>';
                 headers.forEach(h => table += `<th>${h.trim()}</th>`);
                 table += '</tr></thead><tbody>';
@@ -697,10 +1892,32 @@
                 table += '</tbody></table>';
                 return table;
             });
-            
-            // 转换换行
+
+            // 5) 水平分割线 ---
+            content = content.replace(/(^|\n)\s*---+\s*(?=\n|$)/g, '$1<hr class="md-hr">');
+
+            // 6) 连续多个空行折叠为"段落分隔"，避免渲染出大段空白
+            content = content.replace(/\n{2,}/g, '\n\n');
+            // 7) 单个 \n → <br>
             content = content.replace(/\n/g, '<br>');
-            
+
+            // 8) 回填代码块占位符
+            placeholders.forEach((p, idx) => {
+                let replacement;
+                if (p.kind === 'mermaid' && asCard) {
+                    // 最终消息：注册 mermaid，渲染时挂 SVG
+                    const id = registerMermaidBlock(p.code);
+                    replacement = buildMermaidBlockHTML(id);
+                } else if (asCard && p.lang && p.kind === 'code') {
+                    const id = registerCodeArtifact(p.lang, p.code);
+                    replacement = buildCodeCardHTML(id);
+                } else {
+                    // 流式 / 未指定语言：保留原内联预览，确保转义
+                    replacement = `<pre><code>${escapeHtml(p.code)}</code></pre>`;
+                }
+                content = content.replace(`\u0000CODE_BLOCK_${idx}\u0000`, replacement);
+            });
+
             return content;
         }
         
@@ -711,15 +1928,48 @@
             return div.innerHTML;
         }
         
+        // 把累计的 thinking/answer 落成正式消息卡片（典型完成 / 被打断都走这里）
+        function renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, stopped) {
+            hideTyping();
+            const stoppedTag = stopped
+                ? '<div style="color: #a0aec0; font-size: 12px; margin-top: 8px;">⏹ 已停止生成</div>'
+                : '';
+            const safeAnswer = fullAnswer || (stopped ? '_（已停止）_' : '');
+            if (fullThinking) {
+                const durationLabel = thinkingDuration
+                    ? `<span style="margin-left: auto; font-size: 12px; color: #cbd5e0; font-weight: 400; font-variant-numeric: tabular-nums;">用时 ${formatDuration(thinkingDuration)}</span>`
+                    : '';
+                const thinkingHtml = `
+                    <details style="margin-bottom: 12px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(102, 126, 234, 0.22);">
+                        <summary style="cursor: pointer; padding: 10px 14px; background: linear-gradient(135deg, rgba(45, 55, 72, 0.85) 0%, rgba(74, 85, 104, 0.85) 100%); color: #e2e8f0; font-weight: 500; font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                            <span style="transition: transform 0.2s;">▶</span> 已深度思考${durationLabel}
+                        </summary>
+                        <div style="padding: 14px 16px; background: rgba(2, 6, 23, 0.55); color: #94a3b8; font-size: 13px; line-height: 1.7; white-space: pre-wrap; border-top: 1px solid rgba(102, 126, 234, 0.18);">
+                            ${formatThinking(fullThinking)}
+                        </div>
+                    </details>
+                `;
+                addMessage('assistant', thinkingHtml + formatContent(safeAnswer, { asCard: true }) + stoppedTag);
+            } else {
+                addMessage('assistant', formatContent(safeAnswer, { asCard: true }) + stoppedTag);
+            }
+            // 最终消息渲染完后，异步挂载 mermaid 流程图
+            renderMermaidIn(chatMessages.lastElementChild);
+            chatHistory[chatHistory.length - 1][1] = safeAnswer;
+        }
+
         // 发送消息 - 流式版本
         async function sendMessage() {
+            // 生成中再次点击 → 视为"停止生成"
+            if (isGenerating) {
+                abortCurrentRequest();
+                return;
+            }
+
             const message = messageInput.value.trim();
-            
             if (!message && !selectedImage) {
                 return;
             }
-            
-            sendBtn.disabled = true;
 
             // 缓存待发送的图片，下方 fetch 用；之后立刻清掉输入区预览
             const imageToSend = selectedImage;
@@ -737,159 +1987,130 @@
 
             // 显示加载
             showTyping();
-            
+            setSendingState(true);
+
             let fullThinking = '';
             let fullAnswer = '';
-            let thinkingDuration = 0;        // 思考耗时（秒），由第一个 answer 事件的 elapsed 锁定
-            let thinkingFinalized = false;   // 是否已锁定思考时长
+            let thinkingDuration = 0;
+            let thinkingFinalized = false;
+
+            const controller = new AbortController();
+            currentController = controller;
 
             try {
                 const response = await fetch('/api/chat/stream', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: message,
                         history: chatHistory.slice(0, -1),
-                        image: imageToSend
-                    })
+                        image: imageToSend,
+                    }),
+                    signal: controller.signal,
                 });
-                
+
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
-                
+
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    
+
                     buffer += decoder.decode(value, { stream: true });
-                    
-                    // 处理SSE消息
+
                     const lines = buffer.split('\n');
                     buffer = lines.pop() || '';
-                    
+
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                
-                                if (data.type === 'thinking') {
-                                    // 实时更新思考内容 + 计时
-                                    fullThinking = data.content;
-                                    updateThinking(fullThinking, data.elapsed);
-                                } else if (data.type === 'answer') {
-                                    // 首个 answer 到达 → 思考结束，锁定时长
-                                    if (!thinkingFinalized && fullThinking) {
-                                        thinkingDuration = data.elapsed != null ? data.elapsed : thinkingDuration;
-                                        finalizeThinking(thinkingDuration);
-                                        thinkingFinalized = true;
-                                    }
-                                    fullAnswer = data.content;
-                                    updateAnswer(fullAnswer);
-                                } else if (data.type === 'done') {
-                                    // 兜底：done 事件里也带了完整 thinking/answer
-                                    if (data.answer) {
-                                        fullAnswer = data.answer;
-                                    }
-                                    // 极端情况下 answer 阶段没收到任何包就直接 done，这里再补一次锁定
-                                    if (!thinkingFinalized && fullThinking && data.elapsed != null) {
-                                        thinkingDuration = data.elapsed;
-                                        finalizeThinking(thinkingDuration);
-                                        thinkingFinalized = true;
-                                    }
-                                } else if (data.error) {
-                                    fullAnswer = '错误: ' + data.error;
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const data = JSON.parse(line.slice(6));
+
+                            if (data.type === 'thinking') {
+                                fullThinking = data.content;
+                                updateThinking(fullThinking, data.elapsed);
+                            } else if (data.type === 'answer') {
+                                if (!thinkingFinalized && fullThinking) {
+                                    thinkingDuration = data.elapsed != null ? data.elapsed : thinkingDuration;
+                                    finalizeThinking(thinkingDuration);
+                                    thinkingFinalized = true;
                                 }
-                            } catch (e) {
-                                // 跳过无效JSON
+                                fullAnswer = data.content;
+                                updateAnswer(fullAnswer);
+                            } else if (data.type === 'done') {
+                                if (data.answer) fullAnswer = data.answer;
+                                if (!thinkingFinalized && fullThinking && data.elapsed != null) {
+                                    thinkingDuration = data.elapsed;
+                                    finalizeThinking(thinkingDuration);
+                                    thinkingFinalized = true;
+                                }
+                            } else if (data.type === 'error' || data.error) {
+                                // 后端流被中断（read/write timeout、链路断、上游错误等）
+                                // 保留已经流出来的部分回答，附加错误提示，避免"页面突然停了一切清空"
+                                const errMsg = data.error || data.message || '生成被中断';
+                                if (fullAnswer) {
+                                    fullAnswer += `\n\n> ⚠ ${errMsg}（已保留以上部分回答）`;
+                                } else {
+                                    fullAnswer = `⚠ ${errMsg}`;
+                                }
                             }
+                        } catch (e) {
+                            // 跳过无效 JSON
                         }
                     }
                 }
-                
-                // 隐藏加载动画
-                hideTyping();
-                
-                // 添加助手消息
-                if (fullThinking) {
-                    const durationLabel = thinkingDuration
-                        ? `<span style="margin-left: auto; font-size: 12px; color: #cbd5e0; font-weight: 400; font-variant-numeric: tabular-nums;">用时 ${formatDuration(thinkingDuration)}</span>`
-                        : '';
-                    const thinkingHtml = `
-                        <details style="margin-bottom: 15px; border-radius: 10px; overflow: hidden;">
-                            <summary style="cursor: pointer; padding: 12px 16px; background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%); color: #e2e8f0; font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                                <span style="transition: transform 0.2s;">▶</span> 已深度思考${durationLabel}
-                            </summary>
-                            <div style="padding: 16px; background: #f7fafc; color: #2d3748; font-size: 13px; line-height: 1.8; white-space: pre-wrap; border: 1px solid #e2e8f0; border-top: none;">
-                                ${formatThinking(fullThinking)}
-                            </div>
-                        </details>
-                    `;
-                    addMessage('assistant', thinkingHtml + formatContent(fullAnswer));
-                } else {
-                    addMessage('assistant', formatContent(fullAnswer));
-                }
-                
-                // 更新历史
-                chatHistory[chatHistory.length - 1][1] = fullAnswer;
-                
-            } catch (error) {
-                hideTyping();
-                addMessage('assistant', `<span style="color: #dc3545;">网络错误: ${error.message}</span>`);
-            }
 
-            sendBtn.disabled = false;
+                renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, false);
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    // 用户主动停止：保留已生成内容，标记"已停止"
+                    renderFinalAssistantMessage(fullThinking, fullAnswer, thinkingDuration, true);
+                } else {
+                    // 网络异常：保留已经流到一半的回答 + 红色错误尾注，而不是直接清空
+                    const errLine = `\n\n> ⚠ 网络错误: ${error.message}`;
+                    const merged = (fullAnswer || '') + errLine;
+                    renderFinalAssistantMessage(fullThinking, merged, thinkingDuration, true);
+                    console.error('[chat stream]', error);
+                }
+            } finally {
+                currentController = null;
+                setSendingState(false);
+            }
         }
     </script>
-    
-    <!-- Skill管理区域 -->
-    <div style="background: rgba(255,255,255,0.95); border-radius: 16px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
-        <h3 style="color: #333; margin-bottom: 15px;">🔧 扩展技能管理</h3>
-        
-        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
-            <button onclick="loadSkills()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                🔄 刷新技能列表
-            </button>
-            <select id="skillSelect" style="padding: 10px 15px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; min-width: 200px;">
-                <option value="">-- 选择要安装的技能 --</option>
-                <option value="weather">🌤️ 天气预报</option>
-                <option value="translation">🌐 翻译助手</option>
-                <option value="web_search">🔍 联网搜索</option>
-                <option value="stock">📈 股票查询</option>
-                <option value="calendar">📅 日程管理</option>
-            </select>
-            <button onclick="installSkill()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
-                ➕ 安装
-            </button>
-        </div>
-        
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <div id="installedSkills" style="flex: 1; min-width: 300px;">
-                <p style="color: #666; font-size: 14px;">点击"刷新技能列表"查看已安装的技能</p>
-            </div>
-        </div>
-        
-        <div id="skillStatus" style="margin-top: 10px; padding: 10px; border-radius: 8px; display: none;"></div>
-    </div>
     
     <script>
         // Skill管理功能
         async function loadSkills() {
             const statusDiv = document.getElementById('skillStatus');
             const container = document.getElementById('installedSkills');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#e3f2fd';
-            statusDiv.textContent = '正在加载...';
+            // 深色主题下的状态条样式辅助
+            const setStatus = (kind, text) => {
+                // kind: 'info' | 'ok' | 'warn' | 'err'
+                const palette = {
+                    info: { bg: 'rgba(59, 130, 246, 0.12)',  bd: 'rgba(59, 130, 246, 0.35)',  fg: '#93c5fd' },
+                    ok:   { bg: 'rgba(16, 185, 129, 0.12)',  bd: 'rgba(16, 185, 129, 0.40)',  fg: '#6ee7b7' },
+                    warn: { bg: 'rgba(245, 158, 11, 0.12)',  bd: 'rgba(245, 158, 11, 0.40)',  fg: '#fbbf24' },
+                    err:  { bg: 'rgba(239, 68, 68, 0.12)',   bd: 'rgba(239, 68, 68, 0.40)',   fg: '#fca5a5' },
+                };
+                const p = palette[kind] || palette.info;
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = p.bg;
+                statusDiv.style.borderColor = p.bd;
+                statusDiv.style.color = p.fg;
+                statusDiv.textContent = text;
+            };
+            window.__skillSetStatus = setStatus;       // 给 install/uninstall 复用
+            setStatus('info', '正在加载...');
             
             try {
                 const response = await fetch('/api/skills/list');
                 const data = await response.json();
                 
                 if (data.error) {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '加载失败: ' + data.error;
+                    setStatus('err', '加载失败: ' + data.error);
                     return;
                 }
                 
@@ -897,16 +2118,17 @@
                 const installed = skills.filter(s => s.installed);
                 const available = skills.filter(s => !s.installed);
                 
-                let html = '<h4 style="color: #333; margin-bottom: 10px;">已安装的技能:</h4>';
+                let html = '<h4 style="color: #e2e8f0; margin-bottom: 10px; font-size: 13px; font-weight: 600;">已安装的技能</h4>';
                 if (installed.length === 0) {
-                    html += '<p style="color: #999; font-size: 14px;">暂无已安装的技能</p>';
+                    html += '<p style="color: #94a3b8; font-size: 13px;">暂无已安装的技能</p>';
                 } else {
-                    html += '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
+                    // grid 强制 N 列一排，minmax(0, 1fr) 保证不溢出容器
+                    html += `<div style="display: grid; grid-template-columns: repeat(${installed.length}, minmax(0, 1fr)); gap: 8px;">`;
                     installed.forEach(skill => {
-                        html += `<span style="background: #e8f5e9; padding: 8px 15px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px;">
-                            <span>${skill.icon}</span>
-                            <span>${skill.name}</span>
-                            <button onclick="uninstallSkill('${skill.type}')" style="background: #ff5722; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px;">×</button>
+                        html += `<span style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.25)); border: 1px solid rgba(16, 185, 129, 0.35); padding: 6px 10px; border-radius: 16px; font-size: 12px; display: flex; align-items: center; gap: 6px; min-width: 0; box-shadow: 0 1px 6px rgba(16, 185, 129, 0.20);">
+                            <span style="flex-shrink: 0;">${skill.icon}</span>
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6ee7b7;" title="${skill.name}">${skill.name}</span>
+                            <button onclick="uninstallSkill('${skill.type}')" style="background: rgba(239, 68, 68, 0.85); color: white; border: none; border-radius: 50%; width: 18px; height: 18px; cursor: pointer; font-size: 11px; line-height: 1; flex-shrink: 0; padding: 0; display: inline-flex; align-items: center; justify-content: center;" title="卸载">×</button>
                         </span>`;
                     });
                     html += '</div>';
@@ -921,11 +2143,9 @@
                     select.innerHTML += `<option value="${skill.type}">${skill.icon} ${skill.name}</option>`;
                 });
                 
-                statusDiv.style.background = '#e8f5e9';
-                statusDiv.textContent = `共 ${installed.length} 个技能已安装，${available.length} 个可用`;
+                setStatus('ok', `共 ${installed.length} 个技能已安装，${available.length} 个可用`);
             } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
+                setStatus('err', '网络错误: ' + error.message);
             }
         }
         
@@ -938,10 +2158,8 @@
                 return;
             }
             
-            const statusDiv = document.getElementById('skillStatus');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fff3e0';
-            statusDiv.textContent = '正在安装...';
+            const setStatus = window.__skillSetStatus || ((_, t) => {});
+            setStatus('warn', '正在安装...');
             
             try {
                 const response = await fetch('/api/skills/install', {
@@ -953,26 +2171,21 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    statusDiv.style.background = '#e8f5e9';
-                    statusDiv.textContent = '安装成功！';
+                    setStatus('ok', '安装成功！');
                     loadSkills();
                 } else {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '安装失败: ' + (data.message || data.error);
+                    setStatus('err', '安装失败: ' + (data.message || data.error));
                 }
             } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
+                setStatus('err', '网络错误: ' + error.message);
             }
         }
         
         async function uninstallSkill(skillName) {
             if (!confirm('确定要卸载这个技能吗？')) return;
             
-            const statusDiv = document.getElementById('skillStatus');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#fff3e0';
-            statusDiv.textContent = '正在卸载...';
+            const setStatus = window.__skillSetStatus || ((_, t) => {});
+            setStatus('warn', '正在卸载...');
             
             try {
                 const response = await fetch('/api/skills/uninstall', {
@@ -984,16 +2197,13 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    statusDiv.style.background = '#e8f5e9';
-                    statusDiv.textContent = '卸载成功！';
+                    setStatus('ok', '卸载成功！');
                     loadSkills();
                 } else {
-                    statusDiv.style.background = '#ffebee';
-                    statusDiv.textContent = '卸载失败: ' + (data.message || data.error);
+                    setStatus('err', '卸载失败: ' + (data.message || data.error));
                 }
             } catch (error) {
-                statusDiv.style.background = '#ffebee';
-                statusDiv.textContent = '网络错误: ' + error.message;
+                setStatus('err', '网络错误: ' + error.message);
             }
         }
         
@@ -1001,8 +2211,36 @@
         loadSkills();
     </script>
     
-    <div style="text-align: center; padding: 15px; color: #666; font-size: 12px; border-top: 1px solid #eee; margin-top: 20px;">
-        工业视觉检测AI专家 © 2026
+    <div style="text-align: center; padding: 18px; color: rgba(226, 232, 240, 0.45); font-size: 12px; letter-spacing: 2px; border-top: 1px solid rgba(148, 163, 184, 0.12); margin-top: 24px;">
+        INDUSTRIAL VISION · AI COPILOT · © 2026
+    </div>
+
+    <!-- 右侧代码预览抽屉（点击代码卡片时滑入） -->
+    <aside class="code-drawer" id="codeDrawer" aria-hidden="true">
+        <div class="code-drawer__header">
+            <div class="code-drawer__title">
+                <span class="code-drawer__lang" id="codeDrawerLang">CODE</span>
+                <span class="code-drawer__name" id="codeDrawerName">untitled.txt</span>
+            </div>
+            <div class="code-drawer__actions">
+                <button class="code-drawer__btn" onclick="copyDrawerCode()" title="复制全部">复制</button>
+                <button class="code-drawer__btn" onclick="downloadDrawerCode()" title="下载为文件">下载</button>
+                <button class="code-drawer__btn is-close" onclick="closeCodePanel()" title="关闭 (Esc)">×</button>
+            </div>
+        </div>
+        <pre class="code-drawer__body" id="codeDrawerBody"></pre>
+        <div class="code-drawer__toast" id="codeDrawerToast"></div>
+    </aside>
+
+    <!-- Mermaid 大图查看器（点击对话框里的缩略图触发） -->
+    <div class="mermaid-lightbox" id="mermaidLightbox" aria-hidden="true" onclick="if(event.target===this)closeMermaidLightbox()">
+        <button class="mermaid-lightbox__close" onclick="closeMermaidLightbox()" title="关闭 (Esc)">×</button>
+        <div class="mermaid-lightbox__toolbar">
+            <button class="mermaid-lightbox__btn" id="mmdLbDownload" onclick="downloadMermaidJPG(window.__mmdLbId)">⬇ 下载图片</button>
+            <button class="mermaid-lightbox__btn" id="mmdLbCopy" onclick="copyMermaidCode(window.__mmdLbId)">复制源码</button>
+        </div>
+        <div class="mermaid-lightbox__stage" id="mermaidLightboxStage"></div>
+        <div class="mermaid-lightbox__caption">ESC 或点击空白处关闭</div>
     </div>
 </body>
 </html>

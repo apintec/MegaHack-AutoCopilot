@@ -1,5 +1,35 @@
 # AutoCopilot Agent 部署指南
 
+## 🌐 分享给别人用（最常见）
+
+| 场景 | 一键脚本 | 说明 |
+|---|---|---|
+| **同一 Wi-Fi 局域网内同事访问** | 双击 `deploy/share-lan.bat` | 自动列出本机 IP，对方浏览器打开 `http://<IP>:8080` 即可，无需额外安装 |
+| **任意网络（包括手机 4G）公网访问** | 双击 `deploy/share-public.bat` | 自动下载 cloudflared，给一条 `https://xxx.trycloudflare.com` 临时链接，关掉脚本即失效 |
+
+> ⚠️ **安全提示**：当前 `deploy/app.py` 里 `API_KEY` 是硬编码的。如果用公网分享，等于让任何拿到链接的人共用你的 mimo API 额度，**仅作短期演示用，用完务必关闭脚本**。如需长期共享，请改用环境变量 + 加访问控制。
+
+### 局域网分享步骤
+
+1. 双击 `deploy\share-lan.bat`
+2. 终端会列出本机的所有 IPv4 地址（例如 `http://192.168.1.20:8080`）
+3. 把对应链接发给同一 Wi-Fi 的同事，浏览器打开即用
+4. Windows 首次启动可能弹"防火墙"窗口，选 **"允许访问"**
+
+### 公网分享步骤（无需买服务器、无需备案）
+
+1. 双击 `deploy\share-public.bat`
+2. 首次会下载 `cloudflared.exe`（~20 MB，存到 `deploy/bin/`，只下载一次）
+3. 等几秒，终端会输出形如：
+   ```
+   Your quick Tunnel has been created! Visit it at:
+   https://lucky-cat-meadow-1234.trycloudflare.com
+   ```
+4. 把这条 `https://...trycloudflare.com` 链接发出去，**任何人在任何网络都能直接打开**（自带 HTTPS）
+5. 关闭脚本窗口 = 公网链接立即失效 + Web 服务停止
+
+---
+
 ## 📦 快速开始
 
 ### 方法一：一键打包exe (推荐)
