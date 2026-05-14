@@ -125,10 +125,20 @@ _RENDER_CAPABILITIES = """
 _KB_USAGE_RULES = """
 # 参考资料使用规则（强制）
 下文「参考资料」节给出了相关 SDK 的真实 C# API、结构体定义和调用流程，请严格遵守：
-1. **不允许虚构 API**：生成代码时函数名、结构体字段、枚举值必须来自参考资料；若文档未涵盖，明确告知"该 API 在已知文档中未提供"，不要凭空猜测。
-2. **优先复用文档代码片段**：GPU 内存申请、图像拷贝、推理句柄创建、结果解析等通用步骤，直接引用文档示例。
-3. **完整调用流程**：包含初始化、推理、结果解析、资源释放（避免内存泄漏）。
-4. **代码末尾**：用一句话指出参考了文档哪一节（例："参考: §3 目标检测使用示例"）。
+1. **不允许虚构 API**：生成代码时函数名、结构体字段、枚举值必须来自参考资料；
+   若文档未涵盖，明确告知"该 API 在已知文档中未提供"，不要凭空猜测。
+2. **必须命中真实 API**：每个 SDK 的核心调用代码必须出现 ≥ 5 个文档里出现过
+   的函数名 / 结构体名（如 `mallocImgBufferOnCUDA`、`TBboxScoreInfo` 等）。
+   如果通篇都是 `using OpenCvSharp;` 的图像处理逻辑而没有 SDK 函数，视为跑题。
+3. **优先复用文档代码片段**：GPU 内存申请、图像拷贝、推理句柄创建、结果解析等
+   通用步骤，直接引用文档示例。
+4. **完整调用流程**：包含初始化、推理、结果解析、资源释放（避免内存泄漏）。
+5. **理解 SDK 定位**：阅读注入文档后，先在心里区分这是"算法实现库"还是
+   "部署/推理引擎"——
+   - 部署/推理引擎（如 InteVega）：用户的"用 XX 写气泡检测"应理解为
+     "训练气泡模型 + 用 SDK 部署"，不要把它当算法库。
+   - 算法实现库（如 Vap.Algo.Badt.Fi）：直接调用 SDK 内置的 InspectionAlgo。
+6. **代码末尾**：用一句话指出参考了文档哪一节（例："参考: §3 目标检测使用示例"）。
 """
 
 # Vap SDK 的"语言锁"——只要识别到 Vap 场景，回答必须是 C#
@@ -147,13 +157,53 @@ _VAP_LANG_LOCK = """
 """
 
 # InteVega SDK 也是 C# 原生
+# 关键认知：InteVega 是"大图加速推理引擎"（部署 SDK），不是"算法设计库"。
+# 用户说"基于 InteVega 设计气泡检测算法"时，真正的含义是：
+#   先训练一个气泡检测模型 → 转成 InteVega 支持的格式 → 用 SDK 部署推理。
+# 如果不锚定这一点，LLM 会跑题写一段通用 C# 图像处理逻辑，完全用不到 SDK。
 _INTEVEGA_LANG_LOCK = """
-# ⚠️ 语言强制规则（针对本次问题）
-本问题涉及 **InteVega SDK**（大图加速推理库），官方接口为 **C# / .NET**：
-1. 所有代码块使用 ```csharp 标记，函数名/结构体必须来自下文文档（如
-   `CreateDetectorHandle`、`InferDetectorAnalysis`、`MallocImgBufferOnCuda` 等）。
-2. 如用户要求 Python：先说明 SDK 原生为 C#，再给出"P/Invoke 包装 + Python ctypes 调用"的
-   思路示意，而不是凭空编造 Python API。
+# ⚠️ 语言 & API 强制规则（针对本次问题）
+
+## 1. 本质认知（务必先理解）
+**InteVega SDK 是 C# 大图加速推理引擎（部署运行时）**，**不是算法设计库**。
+它负责把训练好的目标检测 / 语义分割 / 稠密点定位 / 分类模型，以"大图切片 +
+GPU 加速 + 结果合并"的方式跑在 NVIDIA GPU 上。它本身不包含"气泡检测算法"，
+而是负责跑你训练好的"气泡检测模型"。
+
+## 2. 用户问"基于 InteVega 写 XX 检测"时的正确解读
+方案要包含两部分，**缺一不可**：
+- **(A) 模型层**：建议训练 YOLO / U-Net / 分类等模型用于 XX 检测，
+  给出数据准备、训练框架、推荐网络结构、模型导出格式（推荐 ONNX / RKNN /
+  TensorRT，最终需打包成 SDK 支持的 hslp.json + 权重）。
+- **(B) 部署层（代码主体）**：用 InteVega SDK 完整调用模型推理，**代码必须
+  严格走文档 §3 "目标检测使用示例" 的 5 步流程**：
+  1) `mallocImgBufferOnCUDA` 预申请 GPU 显存
+  2) `parseJsonToOpenParam` 解析模型配置 + `createDetectorHandle` 创建推理句柄
+  3) `ConvertMatToTImageInfo` 把 OpenCV `Mat` 转 `TImageInfo` 并拷到 GPU
+  4) `inferDetectorAnalysisPtr` 调用推理，解析 `TBboxScoreInfo`
+  5) `releaseDetectorInfoPtr` 释放结果，结束时释放 GPU 显存
+
+## 3. 必须命中的真实 API（反幻觉硬约束）
+代码至少要出现以下 SDK 函数/结构体的 **5 个以上**，名称必须与下文一字不差：
+- 函数：`mallocImgBufferOnCUDA`、`createDetectorHandle`、`parseJsonToOpenParam`、
+  `inferDetectorAnalysisPtr`、`releaseDetectorInfoPtr`、`copyImgBufferFromCpuToGpu`、
+  `setupDetectorLogLevel`、`getDetectorVersion`、`getAIErrorMessage`、
+  `ConvertMatToTImageInfo`
+- 结构体：`TModelOpenParam`、`TImageInfo`、`TBboxScoreInfo`、
+  `TSingleDetectorInfoPtr`、`TBatchDetectorOutInfoPtr`、`TBbox`、
+  `EImageFmt`（如 `AI_BGR_U8C3`、`AI_GRAY_U8C1`）、`EDataAddrType`（如 `AI_DATA_ADDR_GPU`）
+**严禁**自创 `IntelVega.Detector.Run()` / `InteVegaSDK.Detect()` 这种文档里
+没有的虚构 API。
+
+## 4. 语言锁
+1. 所有代码块使用 ```csharp 标记；**严禁** ```python / ```cpp 作为主代码。
+2. 如用户要求 Python：先说明 InteVega 原生接口为 C# (P/Invoke + native dll)，
+   再给出"在 C# 工程里包一层 HTTP/gRPC 服务、Python 客户端调用"的思路，
+   **不要**凭空写 Python 调用代码。
+
+## 5. 必备结尾
+代码末尾用一句中文标明参考的文档章节，如：
+"参考: §3 目标检测使用示例 / §2 GPU 显存的申请与释放"。
 """
 
 # 关键字触发表：用户消息或历史里命中即注入对应文档
@@ -187,8 +237,33 @@ _VAP_KEYWORDS = (
 )
 
 
+# 用户"显式点名"某个 SDK 的强信号——只要消息里明确出现这些专名，
+# 就认为用户指定了这一家，另一家 SDK 的文档不再注入（避免 LLM 拿现成示例跑题）
+_INTEVEGA_NAME_HITS = ('intevega', 'inte vega', 'inte-vega', 'intelvega')
+_VAP_NAME_HITS = ('vap', 'badt.fi', 'badt', 'vap.algo', 'algo.badt')
+
+
 def _build_kb_block(message: str, history) -> str:
-    """根据用户上下文挑选要注入的 SDK 文档 + 语言锁，按关键字门控以节省 token。"""
+    """根据用户上下文挑选要注入的 SDK 文档 + 语言锁，按关键字门控以节省 token。
+
+    决策规则：
+    1. 仅扫"本次用户消息"（不带 history）做"显式点名"判定——历史里的另一家 SDK
+       不应污染当前轮的语言锁
+    2. 如果当前消息显式点名了 InteVega 或 Vap，且只点了其中一个 → 锁定该 SDK，
+       屏蔽另一家的文档与语言锁
+    3. 否则按"用户消息 + 历史"的全局关键字命中表，两家都注入
+    """
+    # 当前轮显式点名
+    current = (message or '').lower()
+    cur_intevega_name = any(k in current for k in _INTEVEGA_NAME_HITS)
+    cur_vap_name = any(k in current for k in _VAP_NAME_HITS)
+    exclusive = None
+    if cur_intevega_name and not cur_vap_name:
+        exclusive = 'intevega'
+    elif cur_vap_name and not cur_intevega_name:
+        exclusive = 'vap'
+
+    # 全局命中（消息 + 历史）：兜住业务关键词
     parts = [(message or '')]
     for h in (history or []):
         if h and len(h) >= 2:
@@ -199,25 +274,30 @@ def _build_kb_block(message: str, history) -> str:
     intevega_hits = [k for k in _INTEVEGA_KEYWORDS if k in haystack]
     vap_hits = [k for k in _VAP_KEYWORDS if k in haystack]
 
+    inject_intevega = bool(_INTEVEGA_DOC and intevega_hits) and exclusive != 'vap'
+    inject_vap = bool(_VAP_DOC and vap_hits) and exclusive != 'intevega'
+
     blocks: list[str] = []
     locks: list[str] = []
 
-    if _VAP_DOC and vap_hits:
-        locks.append(_VAP_LANG_LOCK)
-        blocks.append(
-            "## 【参考资料 B】Vap.Algo.Badt.Fi API 手册（C# / .NET）\n\n" + _VAP_DOC
-        )
-    if _INTEVEGA_DOC and intevega_hits:
+    if inject_intevega:
         locks.append(_INTEVEGA_LANG_LOCK)
         blocks.append(
             "## 【参考资料 A】InteVega SDK 大图加速推理使用说明（C# / .NET）\n\n" + _INTEVEGA_DOC
         )
+    if inject_vap:
+        locks.append(_VAP_LANG_LOCK)
+        blocks.append(
+            "## 【参考资料 B】Vap.Algo.Badt.Fi API 手册（C# / .NET）\n\n" + _VAP_DOC
+        )
 
-    # 调试可见性：命中了什么、注入了多少 token——便于排查"为啥没注入"
+    # 调试可见性：命中了什么、是否触发了"独占锁定"、最终注入多少字符
     if intevega_hits or vap_hits:
         print(
-            f"[KB] hits: intevega={intevega_hits or '-'}, vap={vap_hits or '-'}; "
-            f"inject_chars={sum(len(b) for b in blocks)}",
+            f"[KB] exclusive={exclusive or '-'} | "
+            f"hits intevega={intevega_hits or '-'}, vap={vap_hits or '-'} | "
+            f"inject intevega={inject_intevega}, vap={inject_vap}, "
+            f"chars={sum(len(b) for b in blocks)}",
             flush=True,
         )
 
