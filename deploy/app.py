@@ -131,21 +131,64 @@ _KB_USAGE_RULES = """
 4. **代码末尾**：用一句话指出参考了文档哪一节（例："参考: §3 目标检测使用示例"）。
 """
 
+# Vap SDK 的"语言锁"——只要识别到 Vap 场景，回答必须是 C#
+_VAP_LANG_LOCK = """
+# ⚠️ 语言强制规则（针对本次问题）
+本问题涉及 **Vap.Algo.Badt.Fi**，是一个 **C# / .NET Standard 2.1 程序集**
+（程序集名 `Vap.Algo.Badt.Fi.dll`，依赖 `HalconDotNet` v21.5），**不存在 Python 绑定**。回答必须遵守：
+1. 所有代码块使用 ```csharp 标记；**严禁** ```python / import / def / numpy / OpenCV / PIL。
+2. 类名、命名空间、方法签名一律从下文参考资料拷贝（如
+   `Vap.Algo.Badt.Fi.Base.IAlgoBase<TInput,TParam,TResult>`、
+   `BaseInspectionAlgo<,,>`、`Vap.Algo.Badt.Fi.Detect.Bubble.*` 等）。
+3. 图像输入用 `HObject` 或 `byte[]`（参考手册 §8），**不要**用 OpenCV / PIL / numpy.array。
+4. 工程目标框架 `netstandard2.1` 或 `.NET 6+`，请给出可直接放入 .cs 文件的内容。
+5. 如用户明确要求 Python：直接告知"Vap SDK 仅提供 C# (.NET) 接口，没有 Python 绑定"，
+   可建议通过 HTTP/gRPC 包装 C# 服务后让 Python 客户端调用，**不要凭空编造 Python API**。
+"""
+
+# InteVega SDK 也是 C# 原生
+_INTEVEGA_LANG_LOCK = """
+# ⚠️ 语言强制规则（针对本次问题）
+本问题涉及 **InteVega SDK**（大图加速推理库），官方接口为 **C# / .NET**：
+1. 所有代码块使用 ```csharp 标记，函数名/结构体必须来自下文文档（如
+   `CreateDetectorHandle`、`InferDetectorAnalysis`、`MallocImgBufferOnCuda` 等）。
+2. 如用户要求 Python：先说明 SDK 原生为 C#，再给出"P/Invoke 包装 + Python ctypes 调用"的
+   思路示意，而不是凭空编造 Python API。
+"""
+
 # 关键字触发表：用户消息或历史里命中即注入对应文档
+# 思路：除了 SDK 自身专有名词，还要兜住用户用"业务语言"描述场景的情况
+# （例如"气泡检测/缺陷检测/HALCON"——这些场景在本工程里只有 Vap 能做，必须命中）
 _INTEVEGA_KEYWORDS = (
+    # SDK 名称变体
     'intevega', 'inte vega', 'inte-vega', 'intelvega',
+    # API 专有名
     'ovg', 'tvg', 'slicewidth', 'sliceheight', 'sliceoverlooprate',
     'inferdetectoranalysis', 'createdetectorhandle', 'mallocimgbufferoncuda',
     'tmodelopenparam', 'tbboxscoreinfo',
+    # 中文业务场景（仅在没有 Vap 命中时由 InteVega 兜底；本工程里大图推理 = InteVega）
+    '大图推理', '大图加速', '推理加速', '切片推理', '大图检测',
 )
 _VAP_KEYWORDS = (
-    'vap', 'badt.fi', 'badt', 'halcon', 'bubbledetect',
-    'ialgobase', 'baseinspectionalgo', 'algomodule', 'singledefect',
+    # SDK 名称与程序集
+    'vap', 'badt.fi', 'badt', 'vap.algo', 'algo.badt',
+    # 依赖 / 输入类型
+    'halcon', 'halcondotnet', 'hobject', 'hdevelop',
+    # 核心类型
+    'ialgobase', 'baseinspectionalgo', 'basealgoinput', 'basealgoparam',
+    'basealgoresult', 'singledefect', 'algomodule', 'defecttype',
+    'inspectionalgo', 'algomoduleattribute', 'propertyeditorattribute',
+    # 具体检测算法
+    'bubbledetect', 'bubble',
+    # 中文业务场景：在本工程里这些只能用 Vap 实现
+    '气泡', '气泡检测', '缺陷检测', '表面检测',
+    '划伤', '划痕', '凹坑', '异物',
+    '视觉检测sdk', 'badt 现场',
 )
 
 
 def _build_kb_block(message: str, history) -> str:
-    """根据用户上下文挑选要注入的 SDK 文档，按关键字门控以节省 token。"""
+    """根据用户上下文挑选要注入的 SDK 文档 + 语言锁，按关键字门控以节省 token。"""
     parts = [(message or '')]
     for h in (history or []):
         if h and len(h) >= 2:
@@ -153,24 +196,62 @@ def _build_kb_block(message: str, history) -> str:
             parts.append(h[1] or '')
     haystack = ' '.join(parts).lower()
 
-    blocks = []
-    if _INTEVEGA_DOC and any(k in haystack for k in _INTEVEGA_KEYWORDS):
+    intevega_hits = [k for k in _INTEVEGA_KEYWORDS if k in haystack]
+    vap_hits = [k for k in _VAP_KEYWORDS if k in haystack]
+
+    blocks: list[str] = []
+    locks: list[str] = []
+
+    if _VAP_DOC and vap_hits:
+        locks.append(_VAP_LANG_LOCK)
         blocks.append(
-            "## 【参考资料 A】InteVega SDK 大图加速推理使用说明（C#）\n\n" + _INTEVEGA_DOC
+            "## 【参考资料 B】Vap.Algo.Badt.Fi API 手册（C# / .NET）\n\n" + _VAP_DOC
         )
-    if _VAP_DOC and any(k in haystack for k in _VAP_KEYWORDS):
+    if _INTEVEGA_DOC and intevega_hits:
+        locks.append(_INTEVEGA_LANG_LOCK)
         blocks.append(
-            "## 【参考资料 B】Vap.Algo.Badt.Fi API 手册（C#）\n\n" + _VAP_DOC
+            "## 【参考资料 A】InteVega SDK 大图加速推理使用说明（C# / .NET）\n\n" + _INTEVEGA_DOC
+        )
+
+    # 调试可见性：命中了什么、注入了多少 token——便于排查"为啥没注入"
+    if intevega_hits or vap_hits:
+        print(
+            f"[KB] hits: intevega={intevega_hits or '-'}, vap={vap_hits or '-'}; "
+            f"inject_chars={sum(len(b) for b in blocks)}",
+            flush=True,
         )
 
     if not blocks:
         return ""
-    return _KB_USAGE_RULES + "\n\n# 参考资料\n\n" + "\n\n---\n\n".join(blocks)
+    return (
+        _KB_USAGE_RULES
+        + "\n".join(locks)
+        + "\n\n# 参考资料\n\n"
+        + "\n\n---\n\n".join(blocks)
+    )
+
+
+# 语言/SDK 默认偏好——固定写在每次 SP 末尾，弥补 _BASE_SP 里"C#/Python"二选一的歧义
+_LANG_PREFERENCE = """
+
+# SDK 与语言默认偏好（必须遵守）
+本工程支持的两个核心 SDK **全部为 C# / .NET**：
+- **Vap.Algo.Badt.Fi**：C# (.NET Standard 2.1) + HalconDotNet 21.5，**没有 Python 绑定**
+- **InteVega SDK**：大图加速推理库，官方接口为 C#
+
+回答规则：
+1. 如果用户问题命中以上任一 SDK（直接点名、或描述属于其负责的检测场景，
+   例如气泡/划伤/缺陷/表面检测/大图推理加速），代码默认输出 ```csharp，**严禁**默认输出 Python。
+2. 仅当用户**明确**说"用 Python / 给我 Python 代码 / Python 调用"时，再考虑 Python；
+   此时也要先声明 "Vap/InteVega 没有原生 Python 绑定"，再给出 HTTP/gRPC 或 P/Invoke 包装方案。
+3. 如果用户问题与上面两个 SDK 都不相关（例如纯算法原理讨论、Mermaid 流程图、文档撰写），
+   则按用户偏好选语言，没有限制。
+"""
 
 
 def _build_system_prompt(message: str, history) -> str:
-    """合成最终 system prompt：基础 SP + 前端能力声明 + 按需注入的 SDK 文档块。"""
-    return _BASE_SP + _RENDER_CAPABILITIES + _build_kb_block(message, history)
+    """合成最终 system prompt：基础 SP + 前端能力声明 + 语言偏好 + 按需注入的 SDK 文档块。"""
+    return _BASE_SP + _RENDER_CAPABILITIES + _LANG_PREFERENCE + _build_kb_block(message, history)
 
 @app.route('/api/chat/stream', methods=['POST'])
 def chat_stream():
