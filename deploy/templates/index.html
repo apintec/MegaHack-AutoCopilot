@@ -1838,11 +1838,14 @@
         }
 
         // 流被中断时模型很可能没来得及输出闭合 ```，
-        // 这里补一个虚拟闭合，让 formatContent 也能识别成代码块（而不是当成普通文本铺一大段）
+        // 这里补一个虚拟闭合 + 截断提示，让 formatContent 把残缺代码也识别成卡片
         function _autoCloseCodeFence(s) {
             const ticks = s.match(/```/g);
             if (ticks && ticks.length % 2 === 1) {
-                return s + '\n```';
+                // 启发式：如果最后一个 ``` 后到结尾的内容 > 0，说明里面的代码没闭合
+                const truncMark =
+                    '\n// ⚠️ 输出被截断，请回复"继续输出"或"展开剩余部分"以补全本文件';
+                return s + truncMark + '\n```';
             }
             return s;
         }

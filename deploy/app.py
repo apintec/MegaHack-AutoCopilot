@@ -348,21 +348,54 @@ _RESPONSE_BREVITY = """
 ## 5. 代码完整性硬规则（最高优先级）
 **任何代码块必须能完整闭合、能编译/运行**——宁可剪短功能，也绝不写到一半被截断。
 
-### 5.1 输出前自检
+### 5.1 输出顺序：先代码后文字（重要）
+**优先把完整代码写完再写文字说明**，避免文字部分把 token 用光导致代码截断。
+理想结构：
+```
+1) 一句话总述（≤ 30 字）
+2) ```csharp ... 完整闭合的代码 ...```
+3) ≤ 50 字简要说明 + 下一步引导
+```
+**严禁**在代码前先写 200 字的"方案分析 / 实现思路 / 参数说明"，
+那些都留到下一轮单独问。
+
+### 5.2 写代码前自检（务必）
 在写代码前先在心里估算大小：
-- 估计 > 200 行 / > 2500 token？→ 改写"最简易但完整"版本，删非必要功能
+- 估计 > 150 行？→ 立刻改写"最简易骨架"版本，删非必要功能
 - 仍然装不下？→ 拆成多轮（这一轮只给最核心的 1 个文件）
 
-### 5.2 "最简易但完整"标准（缺一不可）
-1. 完整 `using` / `namespace` / `import`，无 `// TODO 此处填 using` 占位
-2. 完整 `class` 与 `Main` / 入口；花括号、`return`、`;` 必须闭合
-3. 完整调用链：初始化 → 推理/执行 → 结果解析 → **资源释放**（Dispose / Free / Close）
-4. 必要异常处理（try/catch + 关键错误码检查），无半截 try
+### 5.3 InteVega 检测代码标准骨架（≤ 130 行，照抄即可）
+当用户要 InteVega 检测 Demo 时，**严格按这 4 段写**，不要无序展开：
+```
+段 1 (~30 行): 初始化 — Marshal.AllocHGlobal + mallocImgBufferOnCUDA
+              + parseJsonToOpenParam + createDetectorHandle
+段 2 (~15 行): 图像 — Cv2.ImRead + ConvertMatToTImageInfo + copyImgBufferFromCpuToGpu
+段 3 (~15 行): 推理 — TBatchDetectorOutInfoPtr 初始化 + inferDetectorAnalysisPtr
+段 4 (~25 行): 解析 + 释放 — 双层 for 遍历 TBboxScoreInfo
+              + Marshal.PtrToStructure + releaseDetectorInfoPtr
+              + Marshal.FreeHGlobal(gpuBufferAdd)
+```
+段 4 的双层 for 必须**完整闭合所有花括号 + Marshal.FreeHGlobal + return / }**——
+这是最容易被截断的地方，请优先把这段写完整。
+
+### 5.4 "最简易但完整"标准（缺一不可）
+1. 完整 `using` / `namespace` / `import`，无占位
+2. 完整 `class` 与 `Main` / 入口；所有花括号、`return`、`;` 必须闭合
+3. 完整调用链：初始化 → 执行 → 结果解析 → **资源释放**（Dispose / Free / Close）
+4. 必要异常处理（try/catch + 错误码检查），无半截 try
 5. 删掉的非必要项用一行注释标记：
    `// 简化版：省略 X，如需 Y/Z 请下一轮告知`
    不要用 `...` 或 `// TODO:` 写一半的语句
 
-### 5.3 截断兜底
+### 5.5 收尾自检清单（写完代码后逐项默念，不通过则补全）
+在 ``` 闭合代码块之前确认 4 件事：
+- [ ] 所有 `{` 都有对应的 `}`（包括类、方法、for、try）
+- [ ] 所有申请的资源都已释放（`releaseDetectorInfoPtr` / `Marshal.FreeHGlobal` /
+  `Dispose()` / `using`）
+- [ ] 文件有完整入口（`static void Main(...)` 或函数定义）和最终 `}`
+- [ ] 没有 `// ... 省略 ...` / `// TODO: 此处实现` 这种残缺占位
+
+### 5.6 截断兜底
 如果在生成过程中发现长度即将逼近上限：
 - 立刻**收尾闭合**当前文件（补 `}`、Dispose、return）
 - 在文件末尾用注释写 `// 受单轮长度所限，省略 X 部分；如需扩展回复"展开 X"`
@@ -498,14 +531,15 @@ def chat_stream():
         "messages": messages,
         "stream": True,
         "temperature": 0.7,
-        # 3000：匹配 SP 里的"短答多轮"硬约束（≤600 字 + 1 个 ≤200 行 .cs）。
-        # 之前 8000 给了模型"放飞"空间，常常一轮 dump 几百行让用户读不下去。
-        # 真要长代码也让用户分轮拿（前端折叠成 .cs 卡片，多轮拼接体验更好）。
-        "max_tokens": 3000,
+        # 5500：留足"完整 InteVega 检测代码"(~130 行 ≈ 4000 token) +
+        # 30 字总述 + 50 字下一步引导 的空间。低于这个值（之前 3000）
+        # 实测会在双层 for 解析结果时被切断，文件不闭合。
+        # 文字部分仍由 SP 的"先代码后文字 + 30 字总述 + 50 字引导"严格约束。
+        "max_tokens": 5500,
         "extra_body": {
             "thinking": {
                 "type": "enabled",
-                "budget_tokens": 2000
+                "budget_tokens": 2500
             }
         }
     }
